@@ -2,7 +2,7 @@ package net.comtor.dao;
 
 import java.util.HashMap;
 import javax.sql.DataSource;
-import org.apache.commons.dbcp2.BasicDataSource;
+import org.apache.commons.dbcp.BasicDataSource;
 
 /**
  * singleton of All DataSources
@@ -35,7 +35,7 @@ public class DataSourceConnectionMap {
             basicDataSource.setUrl(url);
             basicDataSource.setMaxIdle(MAX_NUM_OF_POOL_CONNECTIONS);
             basicDataSource.setMinIdle(0);
-            basicDataSource.setMaxTotal(MAX_NUM_OF_POOL_CONNECTIONS);
+            basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
             basicDataSource.setValidationQueryTimeout(30);
             //basicDataSource.setMaxWait(20000);
             basicDataSource.setMinEvictableIdleTimeMillis(MIN_EVICTABLE_IDLE_TIMEOUT_MILLIS);

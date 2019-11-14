@@ -26,8 +26,9 @@ public class DataSourceConnectionMap {
 
     public synchronized DataSource getDataSource(String driver, String url, String user, String password) {
         String key = "[" + driver + "][" + url + "][" + user + "][" + password + "]";
-        DataSource ds = dataSourceMap.get(key);
-        if (ds == null) {
+        DataSource dataSource = dataSourceMap.get(key);
+
+        if (dataSource == null) {
             BasicDataSource basicDataSource = new BasicDataSource();
             basicDataSource.setDriverClassName(driver);
             basicDataSource.setUsername(user);
@@ -39,21 +40,31 @@ public class DataSourceConnectionMap {
             basicDataSource.setValidationQueryTimeout(30);
             //basicDataSource.setMaxWait(20000);
             basicDataSource.setMinEvictableIdleTimeMillis(MIN_EVICTABLE_IDLE_TIMEOUT_MILLIS);
-            if (driver.equals(ComtorJDBCDao.DRIVER_POSTGRES)) {
-                basicDataSource.setValidationQuery("SELECT 1+1");
-            } else if (driver.equals(ComtorJDBCDao.DRIVER_MYSQL)) {
-                basicDataSource.setValidationQuery("SELECT 1+1");
-            } else if (driver.equals(ComtorJDBCDao.DRIVER_ORACLE) || driver.equals(ComtorJDBCDao.DRIVER_ORACLE_2)) {
-                basicDataSource.setValidationQuery("SELECT 1+1 FROM DUAL");
-            } else if (driver.equals(ComtorJDBCDao.DRIVER_SQL_SERVER)) {
-                basicDataSource.setValidationQuery("SELECT 1+1");
+
+            switch (driver) {
+                case ComtorJDBCDao.DRIVER_POSTGRES:
+                    basicDataSource.setValidationQuery("SELECT 1+1");
+                    break;
+                case ComtorJDBCDao.DRIVER_MYSQL:
+                    basicDataSource.setValidationQuery("SELECT 1+1");
+                    break;
+                case ComtorJDBCDao.DRIVER_ORACLE:
+                case ComtorJDBCDao.DRIVER_ORACLE_2:
+                    basicDataSource.setValidationQuery("SELECT 1+1 FROM DUAL");
+                    break;
+                case ComtorJDBCDao.DRIVER_SQL_SERVER:
+                    basicDataSource.setValidationQuery("SELECT 1+1");
+                    break;
             }
+
             basicDataSource.setTestWhileIdle(true);
 
             dataSourceMap.put(key, basicDataSource);
+
             return basicDataSource;
         }
-        return ds;
+
+        return dataSource;
     }
 
     static DataSourceConnectionMap getInstance() {

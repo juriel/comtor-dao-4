@@ -4,14 +4,19 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.sql.DataSource;
 
 /**
- * ComtorJDBCDataSourceDao uses apache DBCP	(Database connection pooling services) to improve database pooling
+ * ComtorJDBCDataSourceDao uses apache DBCP	(Database connection pooling
+ * services) to improve database pooling
  *
  * @author COMTOR
  */
 public class ComtorJDBCDataSourceDao extends ComtorJDBCDao {
+
+    private static final Logger LOG = Logger.getLogger(ComtorJDBCDataSourceDao.class.getName());
 
     private DataSource dataSource;
 
@@ -33,22 +38,11 @@ public class ComtorJDBCDataSourceDao extends ComtorJDBCDao {
      * @param password
      * @throws net.comtor.dao.ComtorDaoException
      */
-    public ComtorJDBCDataSourceDao(String driver, String url, String username, String password) throws ComtorDaoException {
+    public ComtorJDBCDataSourceDao(String driver, String url, String username,
+            String password) throws ComtorDaoException {
         super(driver, url, username, password);
     }
 
-//    /**
-//     *
-//     * @param ds
-//
-//     * @throws net.comtor.dao.ComtorDaoException
-//     */
-//    public ComtorJDBCDataSourceDao(DataSource ds) throws ComtorDaoException, SQLException {
-//        super(ds.getConnection());
-//        this.dataSource = ds;
-//    }
-//    
-    
     /**
      *
      * @param driver Class name of java.sql.Driver
@@ -59,8 +53,11 @@ public class ComtorJDBCDataSourceDao extends ComtorJDBCDao {
      * @throws java.sql.SQLException
      */
     @Override
-    protected void initConnection(String driver, String url, String user, String password) throws ClassNotFoundException, SQLException {
-        dataSource = DataSourceConnectionMap.getInstance().getDataSource(driver, url, user, password);
+    protected void initConnection(String driver, String url, String user, String password)
+            throws ClassNotFoundException, SQLException {
+        dataSource = DataSourceConnectionMap.getInstance()
+                .getDataSource(driver, url, user, password);
+
         setJdbcConnection(getDataSource().getConnection());
     }
 
@@ -72,63 +69,38 @@ public class ComtorJDBCDataSourceDao extends ComtorJDBCDao {
         return dataSource;
     }
 
-    /**
-     *
-     * @param rs
-     * @param s
-     * @param conn
-     * @param dao
-     */
-    public static void safeClose(ResultSet rs, Statement s, Connection conn, ComtorJDBCDao dao) {
+    public static void safeClose(ComtorJDBCDao dao, Connection conn, Statement stmt, ResultSet rs) {
         if (rs != null) {
             try {
                 rs.close();
-            } catch (Exception e) {
+            } catch (SQLException ex) {
+                LOG.log(Level.SEVERE, ex.getMessage(), ex);
             }
         }
 
-        safeClose(s, conn, dao);
-    }
-
-    public static void safeClose(Statement s, Connection conn, ComtorJDBCDao dao) {
-        if (s != null) {
+        if (stmt != null) {
             try {
-                s.close();
-            } catch (Exception e) {
+                stmt.close();
+            } catch (SQLException ex) {
+                LOG.log(Level.SEVERE, ex.getMessage(), ex);
             }
         }
 
-        safeClose(conn, dao);
-    }
-
-    public static void safeClose(Statement[] statements, Connection conn, ComtorJDBCDao dao) {
-        if (statements != null) {
-            for (Statement s : statements) {
-                if (s != null) {
-                    try {
-                        s.close();
-                    } catch (Exception e) {
-                    }
-                }
-            }
-        }
-
-        safeClose(conn, dao);
-    }
-
-    public static void safeClose(Connection conn, ComtorJDBCDao dao) {
         if (conn != null) {
             try {
                 conn.close();
-            } catch (Exception e) {
+            } catch (SQLException ex) {
+                LOG.log(Level.SEVERE, ex.getMessage(), ex);
             }
         }
 
         if (dao != null) {
             try {
                 dao.close();
-            } catch (Exception e) {
+            } catch (Exception ex) {
+                LOG.log(Level.SEVERE, ex.getMessage(), ex);
             }
         }
     }
+
 }

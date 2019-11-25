@@ -37,16 +37,17 @@ public class ComtorJDBCDataSourceDao extends ComtorJDBCDao {
         super(driver, url, username, password);
     }
 
-//    /**
-//     *
-//     * @param ds
-//
-//     * @throws net.comtor.dao.ComtorDaoException
-//     */
-//    public ComtorJDBCDataSourceDao(DataSource ds) throws ComtorDaoException, SQLException {
-//        super(ds.getConnection());
-//        this.dataSource = ds;
-//    }
+    /**
+     *
+     * @param ds
+
+     * @throws net.comtor.dao.ComtorDaoException
+     * @throws java.sql.SQLException
+     */
+    public ComtorJDBCDataSourceDao(DataSource ds) throws ComtorDaoException, SQLException {
+        super(ds.getConnection());
+        this.dataSource = ds;
+    }
 //    
     /**
      *

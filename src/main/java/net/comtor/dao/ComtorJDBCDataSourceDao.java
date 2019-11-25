@@ -48,7 +48,6 @@ public class ComtorJDBCDataSourceDao extends ComtorJDBCDao {
 //        this.dataSource = ds;
 //    }
 //    
-    
     /**
      *
      * @param driver Class name of java.sql.Driver
@@ -79,7 +78,7 @@ public class ComtorJDBCDataSourceDao extends ComtorJDBCDao {
      * @param conn
      * @param dao
      */
-    public static void safeClose(ResultSet rs, Statement s, Connection conn, ComtorJDBCDao dao) {
+    public static void safeClose(ResultSet rs, Statement stmt, Connection conn, ComtorJDBCDao dao) {
         if (rs != null) {
             try {
                 rs.close();
@@ -87,13 +86,13 @@ public class ComtorJDBCDataSourceDao extends ComtorJDBCDao {
             }
         }
 
-        safeClose(s, conn, dao);
+        safeClose(stmt, conn, dao);
     }
 
-    public static void safeClose(Statement s, Connection conn, ComtorJDBCDao dao) {
-        if (s != null) {
+    public static void safeClose(Statement stmt, Connection conn, ComtorJDBCDao dao) {
+        if (stmt != null) {
             try {
-                s.close();
+                stmt.close();
             } catch (Exception e) {
             }
         }
@@ -103,10 +102,10 @@ public class ComtorJDBCDataSourceDao extends ComtorJDBCDao {
 
     public static void safeClose(Statement[] statements, Connection conn, ComtorJDBCDao dao) {
         if (statements != null) {
-            for (Statement s : statements) {
-                if (s != null) {
+            for (Statement stmt : statements) {
+                if (stmt != null) {
                     try {
-                        s.close();
+                        stmt.close();
                     } catch (Exception e) {
                     }
                 }

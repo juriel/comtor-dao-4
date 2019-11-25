@@ -17,6 +17,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,6 +33,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
     private static final Logger LOG = Logger.getLogger(ComtorJDBCDao.class.getName());
 
+    public static boolean LOG_EXECUTE_QUERY = false;
     public static final String DRIVER_SQL_SERVER = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
     public static final String DRIVER_POSTGRES = "org.postgresql.Driver";
     public static final String DRIVER_MYSQL = "com.mysql.jdbc.Driver";
@@ -50,8 +52,8 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     String user;
     String password;
 
-    public ComtorJDBCDao(Connection conn) throws ComtorDaoException {
-        jdbcConnection = conn;
+    public ComtorJDBCDao(Connection con) throws ComtorDaoException {
+        jdbcConnection = con;
     }
 
     /**
@@ -68,8 +70,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         try {
             initConnection(driver, url, null, null);
         } catch (Exception ex) {
-            throw new ComtorJDBCDaoConstructionFailedException("ComtorJDBCDao "
-                    + "construction failed " + ex.getMessage(), ex);
+            throw new ComtorJDBCDaoConstructionFailedException("ComtorJDBCDao construction failed " + ex.getMessage(), ex);
         }
     }
 
@@ -81,10 +82,8 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @param password
      * @throws net.comtor.dao.ComtorDaoException
      */
-    public ComtorJDBCDao(String driver, String url, String user, String password)
-            throws ComtorDaoException {
+    public ComtorJDBCDao(String driver, String url, String user, String password) throws ComtorDaoException {
         super();
-
         this.driver = driver;
         this.url = url;
         this.user = user;
@@ -93,8 +92,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         try {
             initConnection(driver, url, user, password);
         } catch (Exception ex) {
-            throw new ComtorJDBCDaoConstructionFailedException("ComtorJDBCDao "
-                    + "construction failed (" + url + "," + " " + user + " , xxxxx , " + ex, ex);
+            throw new ComtorJDBCDaoConstructionFailedException("ComtorJDBCDao construction failed (" + url + "," + " " + user + " , xxxxx , " + ex, ex);
         }
     }
 
@@ -119,13 +117,15 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @throws java.lang.ClassNotFoundException
      * @throws java.sql.SQLException
      */
-    protected void initConnection(String driver, String url, String user, String password)
-            throws ClassNotFoundException, SQLException {
+    protected void initConnection(String driver, String url, String user, String password) throws ClassNotFoundException, SQLException {
         Class.forName(driver);
 
-        jdbcConnection = (user == null)
-                ? DriverManager.getConnection(url)
-                : DriverManager.getConnection(url, user, password);
+        if (user == null) {
+            //DriverManager.setLoginTimeout(10);
+            jdbcConnection = DriverManager.getConnection(url);
+        } else {
+            jdbcConnection = DriverManager.getConnection(url, user, password);
+        }
     }
 
     /**
@@ -145,32 +145,35 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     /**
      * finds element in database
      *
-     * @param daoKey
+     * @param key
      * @param desc
      * @return Object
      * @throws net.comtor.dao.ComtorDaoException
      */
-    public Object findElement(ComtorDaoKey daoKey, ComtorDaoDescriptor desc) throws ComtorDaoException {
-        ComtorJDBCDaoDescriptor descriptor = castDescriptor(desc);
-        String pair = "";
-        String query = getFindQuery(daoKey, descriptor);
+    public Object findElement(ComtorDaoKey key, ComtorDaoDescriptor desc) throws ComtorDaoException {
+        ComtorJDBCDaoDescriptor desc2 = castDescriptor(desc);
+        String keyValueStr = "";
+        String sql = getFindQuery(key, desc2);
+
+        if (LOG_EXECUTE_QUERY) {
+            System.err.println("SQL >> " + sql);
+        }
+
         PreparedStatement ps = null;
         ResultSet rs = null;
 
         try {
-            ps = getJdbcConnection().prepareStatement(query);
+            ps = getJdbcConnection().prepareStatement(sql);
+            Set<String> s = key.getKeys().keySet();
             int i = 0;
 
-            for (String key : daoKey.getKeys().keySet()) {
+            for (String k : s) {
                 int pos = i + 1;
-
-                ComtorJDBCField field = descriptor.getField(key);
-                Object value = daoKey.getValue(field.getAttributeName());
-
-                pair += field.getAttributeName() + " " + value;
-
-                assignValueInPreparedStatement(ps, pos, field.getType(), value);
-
+                ComtorJDBCField f = desc2.getField(k);
+                Class type = f.getType();
+                Object value = key.getValue(f.getAttributeName());
+                keyValueStr += "" + f.getAttributeName() + " " + value;
+                assignValueInPreparedStatement(ps, pos, type, value);
                 i++;
             }
 
@@ -178,11 +181,10 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
             if (rs.next()) {
                 Object result = desc.getObjectClass().newInstance();
-                fillObject(result, rs, descriptor);
+                fillObject(result, rs, desc2);
 
                 if (rs.next()) {
-                    throw new ComtorDaoException("findElement founds more than "
-                            + "one element. [" + query + "]" + pair);
+                    throw new ComtorDaoException("findElement founds more than one element. [" + sql + "]" + keyValueStr);
                 }
 
                 return result;
@@ -190,18 +192,17 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
             return null;
         } catch (SQLException ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
+            ex.printStackTrace();
 
-            throw new ComtorDaoException("Can't create prepareStatement: " + query
-                    + " " + ex.getMessage(), ex);
+            throw new ComtorDaoException("Can't create prepareStatement: " + sql + " " + ex.getMessage(), ex);
         } catch (InstantiationException ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
+            ex.printStackTrace();
 
             throw new ComtorDaoException("Can't Instantiate: " + ex.getMessage(), ex);
         } catch (IllegalAccessException ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
+            ex.printStackTrace();
         } finally {
-            safeClose(null, null, ps, null);
+            safeClosePreparedStatement(ps);
         }
 
         return null;
@@ -219,13 +220,13 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         LinkedList<ComtorJDBCField> specialFields = daoDescriptor.getSpecialFields(); // ComtorSpecialField 2014-02-10
         selectableFields.addAll(specialFields);
 
-        for (ComtorJDBCField field : selectableFields) {
-            Class fieldType = field.getType();
-            String columnName = field.getColumnName();
+        for (ComtorJDBCField selectableField : selectableFields) {
+            Class fieldType = selectableField.getType();
+            String columnNameFromField = selectableField.getColumnName();
             Object obj[] = new Object[1];  // parameter for invoke
 
             try {
-                Object dataFromResultSet = rs.getObject(columnName);
+                Object dataFromResultSet = rs.getObject(columnNameFromField);
 
                 if (dataFromResultSet != null) {
                     obj[0] = dataFromResultSet;
@@ -233,35 +234,32 @@ public class ComtorJDBCDao extends AbstractComtorDao {
                     try {
                         Class dataType = dataFromResultSet.getClass();
 
-                        if ((fieldType.equals(long.class) || fieldType.equals(double.class))
-                                && dataFromResultSet == null) {
-                            field.getSetMethod().invoke(result, 0);
+                        if ((fieldType.equals(long.class) || fieldType.equals(double.class)) && dataFromResultSet == null) {
+                            selectableField.getSetMethod().invoke(result, 0);
                         } else if (fieldType.equals(long.class) && dataType.equals(BigDecimal.class)) {
                             obj[0] = ((BigDecimal) dataFromResultSet).longValue();
-                            field.getSetMethod().invoke(result, obj);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else if (fieldType.equals(long.class) && dataType.equals(BigInteger.class)) {
                             obj[0] = ((BigInteger) dataFromResultSet).longValue();
-                            field.getSetMethod().invoke(result, obj);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else if (fieldType.equals(Long.class) && dataType.equals(BigDecimal.class)) {
                             obj[0] = ((BigDecimal) dataFromResultSet).longValue();
-                            field.getSetMethod().invoke(result, obj);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else if (fieldType.equals(Long.class) && dataType.equals(BigInteger.class)) {
                             obj[0] = ((BigInteger) dataFromResultSet).longValue();
-                            field.getSetMethod().invoke(result, obj);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else if (fieldType.equals(double.class) && dataType.equals(BigDecimal.class)) {
                             obj[0] = ((BigDecimal) dataFromResultSet).doubleValue();
-                            field.getSetMethod().invoke(result, obj);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else if (fieldType.equals(Double.class) && dataType.equals(BigDecimal.class)) {
                             obj[0] = ((BigDecimal) dataFromResultSet).doubleValue();
-                            field.getSetMethod().invoke(result, obj);
-                        } else if ((fieldType.equals(float.class) || fieldType.equals(Float.class))
-                                && dataType.equals(BigDecimal.class)) {
+                            selectableField.getSetMethod().invoke(result, obj);
+                        } else if ((fieldType.equals(float.class) || fieldType.equals(Float.class)) && dataType.equals(BigDecimal.class)) {
                             obj[0] = ((BigDecimal) dataFromResultSet).floatValue();
-                            field.getSetMethod().invoke(result, obj);
-                        } else if ((fieldType.equals(int.class) || fieldType.equals(Integer.class))
-                                && dataType.equals(BigDecimal.class)) {
+                            selectableField.getSetMethod().invoke(result, obj);
+                        } else if ((fieldType.equals(int.class) || fieldType.equals(Integer.class)) && dataType.equals(BigDecimal.class)) {
                             obj[0] = ((BigDecimal) dataFromResultSet).intValue();
-                            field.getSetMethod().invoke(result, obj);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else if (fieldType.equals(long.class) && dataType.equals(Boolean.class)) {
                             if (((Boolean) dataFromResultSet) == true) {
                                 obj[0] = 1;
@@ -271,28 +269,27 @@ public class ComtorJDBCDao extends AbstractComtorDao {
                                 obj[0] = -1;
                             }
 
-                            field.getSetMethod().invoke(result, obj);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else if (fieldType.equals(java.sql.Timestamp.class)) {
-                            obj[0] = rs.getTimestamp(columnName);
-                            field.getSetMethod().invoke(result, obj);
+                            obj[0] = rs.getTimestamp(columnNameFromField);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else if (fieldType.equals(java.sql.Time.class)) {
-                            obj[0] = rs.getTime(columnName);
-                            field.getSetMethod().invoke(result, obj);
+                            obj[0] = rs.getTime(columnNameFromField);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else if (fieldType.equals(java.sql.Date.class)) {
-                            obj[0] = rs.getDate(columnName);
-                            field.getSetMethod().invoke(result, obj);
+                            obj[0] = rs.getDate(columnNameFromField);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else if (fieldType.equals(String.class) && dataFromResultSet instanceof java.sql.Clob) {
-                            obj[0] = rs.getString(columnName);
-                            field.getSetMethod().invoke(result, obj);
+                            obj[0] = rs.getString(columnNameFromField);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else if (fieldType.equals(Boolean.class) || fieldType.equals(boolean.class)) {
-                            obj[0] = rs.getBoolean(columnName);
-                            field.getSetMethod().invoke(result, obj);
+                            obj[0] = rs.getBoolean(columnNameFromField);
+                            selectableField.getSetMethod().invoke(result, obj);
                         } else {
-                            field.getSetMethod().invoke(result, obj);
+                            selectableField.getSetMethod().invoke(result, obj);
                         }
                     } catch (Exception ex) {
-                        System.err.println("ERROR FILL  table " + daoDescriptor.getTableName()
-                                + " :  column " + field.getColumnName() + " ("
+                        System.err.println("ERROR FILL  table " + daoDescriptor.getTableName() + " :  column " + selectableField.getColumnName() + " ("
                                 + fieldType + ") : " + dataFromResultSet.getClass());
                         if (obj[0] != null) {
                             System.err.println("ResultSet value class " + obj[0].getClass());
@@ -302,15 +299,13 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
                         System.err.println(ex.getClass().getName() + " : " + ex.getMessage());
 
-                        LOG.log(Level.SEVERE, ex.getMessage(), ex);
+                        ex.printStackTrace();
                     }
                 }
             } catch (SQLException ex) {
-                LOG.log(Level.SEVERE, ex.getMessage(), ex);
             } catch (IllegalArgumentException ex) {
-                LOG.log(Level.SEVERE, ex.getMessage(), ex);
             } catch (Exception ex) {
-                LOG.log(Level.SEVERE, ex.getMessage(), ex);
+                ex.printStackTrace();
             }
         }
     }
@@ -322,35 +317,52 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @param value field.getValue(element)
      * @throws SQLException
      */
-    public static void assignValueInPreparedStatement(PreparedStatement ps, int pos,
-            Class type, Object value) throws SQLException {
+    public static void assignValueInPreparedStatement(PreparedStatement ps, int pos, Class type, Object value) throws SQLException {
         try {
-            if (value == null) {
-                ps.setNull(pos, java.sql.Types.INTEGER);
-
-                return;
-            }
-
             if (type.equals(String.class)) {
                 ps.setString(pos, (String) value);
             } else if (type.equals(short.class)) {
-                ps.setShort(pos, ((Short) value));
+                ps.setShort(pos, ((Short) value).shortValue());
             } else if (type.equals(int.class) && value instanceof java.lang.Integer) {
-                ps.setInt(pos, ((Integer) value));
+                if (value == null) {
+                    ps.setNull(pos, java.sql.Types.INTEGER);
+
+                    return;
+                }
+
+                ps.setInt(pos, ((Integer) value).intValue());
             } else if (type.equals(int.class) && value instanceof java.lang.Long) {
-                ps.setLong(pos, ((Long) value));
+                if (value == null) {
+                    ps.setNull(pos, java.sql.Types.INTEGER);
+
+                    return;
+                }
+
+                ps.setLong(pos, ((Long) value).longValue());
             } else if (type.equals(long.class) && value instanceof java.lang.Long) {
-                ps.setLong(pos, ((Long) value));
+                if (value == null) {
+                    ps.setNull(pos, java.sql.Types.INTEGER);
+
+                    return;
+                }
+
+                ps.setLong(pos, ((Long) value).longValue());
             } else if (type.equals(long.class) && value instanceof java.lang.Integer) {
-                ps.setLong(pos, ((Integer) value));
+                if (value == null) {
+                    ps.setNull(pos, java.sql.Types.INTEGER);
+
+                    return;
+                }
+
+                ps.setLong(pos, ((Integer) value).intValue());
             } else if (type.equals(boolean.class)) {
-                ps.setBoolean(pos, ((Boolean) value));
+                ps.setBoolean(pos, ((Boolean) value).booleanValue());
             } else if (type.equals(double.class)) {
-                ps.setDouble(pos, ((Double) value));
+                ps.setDouble(pos, ((Double) value).doubleValue());
             } else if (type.equals(float.class)) {
-                ps.setDouble(pos, ((Float) value));
+                ps.setDouble(pos, ((Float) value).floatValue());
             } else if (type.equals(char.class)) {
-                ps.setDouble(pos, ((Character) value));
+                ps.setDouble(pos, ((Character) value).charValue());
             } else if (type.equals(Date.class)) {
                 ps.setDate(pos, (Date) value);
             } else if (type.equals(Timestamp.class)) {
@@ -358,7 +370,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             } else if (type.equals(Time.class)) {
                 ps.setTime(pos, (Time) value);
             } else if (type.equals(char.class)) {
-                ps.setDouble(pos, ((Character) value));
+                ps.setDouble(pos, ((Character) value).charValue());
             } else if (type.equals(byte[].class)) {
                 ps.setBytes(pos, (byte[]) value);
             } else if (type.equals(BigDecimal.class)) {
@@ -367,10 +379,9 @@ public class ComtorJDBCDao extends AbstractComtorDao {
                 ps.setObject(pos, value);
             }
         } catch (Exception ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
-
+            ex.printStackTrace();
             System.err.println("assignValueInPreparedStatement VALUES CLASS " + value.getClass() + " - " + pos);
-            System.err.println("assignValueInPreparedStatement type " + type + " - " + value);
+            System.err.println(" assignValueInPreparedStatement type " + type + " - " + value);
         }
     }
 
@@ -382,15 +393,20 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      */
     public void insertElement(Object element, ComtorDaoDescriptor desc) throws ComtorDaoException {
         ComtorJDBCDaoDescriptor descriptor = castDescriptor(desc);
+
         LinkedList<ComtorJDBCField> fields = descriptor.getInsertableFields();
-        String query = getInsertQuery(descriptor, fields);
+        String sql = getInsertQuery(descriptor, fields);
+
+        if (LOG_EXECUTE_QUERY) {
+            System.err.println("SQL >> " + sql);
+        }
+
         PreparedStatement ps = null;
+        int i = -1;
 
         try {
             this.preInsert(element, descriptor);
-
-            ps = getJdbcConnection().prepareStatement(query);
-
+            ps = getJdbcConnection().prepareStatement(sql);
             assignFieldsPreparedStatement(1, fields, element, ps);
 
             ps.execute();
@@ -399,20 +415,18 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         } catch (SQLException ex) {
             throw new ComtorDaoException("Fail on insertElement: " + ex.getMessage(), ex);
         } finally {
-            safeClose(null, null, ps, null);
+            safeClosePreparedStatement(ps);
         }
 
     }
 
-    public static int assignFieldsPreparedStatement(int firstPosition,
-            LinkedList<ComtorJDBCField> fields, Object element, PreparedStatement ps)
-            throws SQLException {
+    public static int assignFieldsPreparedStatement(int firstPosition, LinkedList<ComtorJDBCField> fields, Object element, PreparedStatement ps) throws SQLException {
         int position = firstPosition;
 
-        for (ComtorJDBCField field : fields) {
-            Class type = field.getType();
-            Object value = field.getValue(element);
-
+        for (int i = 0; i < fields.size(); i++) {
+            ComtorJDBCField f = fields.get(i);
+            Class type = f.getType();
+            Object value = f.getValue(element);
             assignValueInPreparedStatement(ps, position++, type, value);
         }
 
@@ -428,8 +442,8 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     public void preInsert(Object object, ComtorJDBCDaoDescriptor descriptor) throws ComtorDaoException {
         String sequenceQuery = descriptor.getSequenceQuery();
 
-        if ((sequenceQuery != null)
-                && (descriptor.getSequenceTypeInsert() == ComtorJDBCDaoDescriptor.SEQUENCE_PRE_INSERT)) {
+        if (sequenceQuery != null && descriptor.getSequenceTypeInsert() == ComtorJDBCDaoDescriptor.SEQUENCE_PRE_INSERT) {
+
             setIdFromSequence(object, descriptor);
         }
     }
@@ -443,8 +457,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     public void postInsert(Object object, ComtorJDBCDaoDescriptor descriptor) throws ComtorDaoException {
         String sequenceQuery = descriptor.getSequenceQuery();
 
-        if ((sequenceQuery != null)
-                && (descriptor.getSequenceTypeInsert() == ComtorJDBCDaoDescriptor.SEQUENCE_POST_INSERT)) {
+        if (sequenceQuery != null && descriptor.getSequenceTypeInsert() == ComtorJDBCDaoDescriptor.SEQUENCE_POST_INSERT) {
             setIdFromSequence(object, descriptor);
         }
     }
@@ -464,12 +477,14 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             Annotation[] annotations = field.getAnnotations();
 
             for (Annotation annotation : annotations) {
+                //System.err.println("NEXT_ID "+"set" + field.getName().substring(0, 1).toUpperCase() + field.getName().substring(1, field.getName().length()));
+
                 if (annotation.annotationType().equals(ComtorId.class)) {
                     String keyName = field.getName();
-                    String keyMethodName = "set" + keyName.substring(0, 1).toUpperCase()
-                            + keyName.substring(1, keyName.length());
+                    String keyMethodName = "set" + keyName.substring(0, 1).toUpperCase() + keyName.substring(1, keyName.length());
                     long nextId = this.getNextId(descriptor);
 
+                    //System.err.println("NEXT_ID "+nextId);
                     if (nextId != 0) {
                         try {
                             Method methodSet = clazz.getMethod(keyMethodName, long.class);
@@ -486,25 +501,29 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     /**
      *
      * @param element
-     * @param daoKey
+     * @param key
      * @param desc
      * @throws net.comtor.dao.ComtorDaoException
      */
-    public void updateElement(Object element, ComtorDaoKey daoKey, ComtorDaoDescriptor desc)
-            throws ComtorDaoException {
-        ComtorJDBCDaoDescriptor descriptor = castDescriptor(desc);
-        LinkedList<ComtorJDBCField> updatableFields = descriptor.getUpdatebleFields();
-        String query = getUpdateQuery(daoKey, descriptor, updatableFields);
+    public void updateElement(Object element, ComtorDaoKey key, ComtorDaoDescriptor desc) throws ComtorDaoException {
+        ComtorJDBCDaoDescriptor desc2 = castDescriptor(desc);
+
+        LinkedList<ComtorJDBCField> updatableFields = desc2.getUpdatebleFields();
+        String sql = getUpdateQuery(key, desc2, updatableFields);
+
+        if (LOG_EXECUTE_QUERY) {
+            System.err.println("SQL >> " + sql);
+        }
+
         PreparedStatement ps = null;
         int pos = 1;
 
         try {
-            ps = getJdbcConnection().prepareStatement(query);
-
+            ps = getJdbcConnection().prepareStatement(sql);
             LinkedList<ComtorJDBCField> updatableFieldsWithoutKeys = new LinkedList<>();
 
             for (ComtorJDBCField field : updatableFields) {
-                if (!daoKey.getKeys().containsKey(field.getAttributeName())) {
+                if (!key.getKeys().containsKey(field.getAttributeName())) {
                     updatableFieldsWithoutKeys.add(field);
                 }
             }
@@ -513,71 +532,72 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
             LinkedList<ComtorJDBCField> whereKeys = new LinkedList<>();
 
-            for (String key : daoKey.getKeys().keySet()) {
-                ComtorJDBCField field = descriptor.getField(key);
+            for (String k : key.getKeys().keySet()) {
+                ComtorJDBCField field = desc2.getField(k);
                 whereKeys.add(field);
             }
 
             assignFieldsPreparedStatement(pos, whereKeys, element, ps);
-
             ps.execute();
         } catch (SQLException ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
+            ex.printStackTrace();
 
-            throw new ComtorDaoException("ComtorJDBCDao " + ex.getMessage() + " SQL [" + query + "]", ex);
+            throw new ComtorDaoException("ComtorJDBCDao " + ex.getMessage() + " SQL [" + sql + "]", ex);
         } finally {
-            safeClose(null, null, ps, null);
+            safeClosePreparedStatement(ps);
         }
     }
 
     /**
      *
-     * @param daoKey
+     * @param key
      * @param desc
      * @throws net.comtor.dao.ComtorDaoException
      */
-    public void deleteElement(ComtorDaoKey daoKey, ComtorDaoDescriptor desc) throws ComtorDaoException {
-        ComtorJDBCDaoDescriptor descriptor = castDescriptor(desc);
-        String query = getDeleteQuery(daoKey, descriptor);
+    public void deleteElement(ComtorDaoKey key, ComtorDaoDescriptor desc) throws ComtorDaoException {
+        ComtorJDBCDaoDescriptor desc2 = castDescriptor(desc);
+        String sql = getDeleteQuery(key, desc2);
+
+        if (LOG_EXECUTE_QUERY) {
+            System.err.println("SQL >> " + sql);
+        }
+
         PreparedStatement ps = null;
+        int pos = 1;
 
         try {
-            ps = getJdbcConnection().prepareStatement(query);
+            ps = getJdbcConnection().prepareStatement(sql);
 
-            int pos = 1;
-
-            for (String key : daoKey.getKeys().keySet()) {
-                ComtorJDBCField field = descriptor.getField(key);
-                assignValueInPreparedStatement(ps, pos, field.getType(), daoKey.getValue(key));
-
+            for (String k : key.getKeys().keySet()) {
+                ComtorJDBCField field = desc2.getField(k);
+                assignValueInPreparedStatement(ps, pos, field.getType(), key.getValue(k));
                 pos++;
             }
 
             ps.execute();
         } catch (SQLException ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
+            ex.printStackTrace();
 
             throw new ComtorDaoException("Delete element failure", ex);
         } finally {
-            safeClose(null, null, ps, null);
+            safeClosePreparedStatement(ps);
         }
 
     }
 
     /**
      *
-     * @param daoKey
+     * @param key
      * @param desc2
      * @return
      */
-    private String getDeleteQuery(ComtorDaoKey daoKey, ComtorJDBCDaoDescriptor desc) {
+    private String getDeleteQuery(ComtorDaoKey key, ComtorJDBCDaoDescriptor desc2) {
         String wherePart = "";
         int count = 0;
 
-        for (String key : daoKey.getKeys().keySet()) {
-            ComtorJDBCField field = desc.getField(key);
+        for (String k : key.getKeys().keySet()) {
+            ComtorJDBCField field = desc2.getField(k);
             wherePart += " AND  " + field.getColumnName() + " = ? ";
-
             count++;
         }
 
@@ -585,10 +605,20 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             wherePart = wherePart.substring(5);
         }
 
-        return "DELETE FROM " + desc.getTableName()
-                + ((count > 0)
-                        ? " WHERE " + wherePart
-                        : "");
+        return "DELETE FROM " + desc2.getTableName() + ((count > 0) ? " WHERE " + wherePart : "");
+    }
+
+    /**
+     * @param ps
+     */
+    private void safeClosePreparedStatement(PreparedStatement ps) {
+        if (ps != null) {
+            try {
+                ps.close();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        }
     }
 
     /**
@@ -597,14 +627,13 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @return
      * @throws net.comtor.dao.ComtorDaoException
      */
-    private ComtorJDBCDaoDescriptor castDescriptor(ComtorDaoDescriptor desc)
-            throws ComtorDaoException {
-        ComtorJDBCDaoDescriptor descriptor;
+    private ComtorJDBCDaoDescriptor castDescriptor(ComtorDaoDescriptor desc) throws ComtorDaoException {
+        ComtorJDBCDaoDescriptor desc2;
 
         try {
-            descriptor = (ComtorJDBCDaoDescriptor) desc;
+            desc2 = (ComtorJDBCDaoDescriptor) desc;
 
-            return descriptor;
+            return desc2;
         } catch (ClassCastException exception) {
             throw new ComtorDaoException("Invalid ComtorDaoDescriptor", exception);
         }
@@ -646,46 +675,83 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         }
     }
 
-    public static ComtorDaoData executeQuery(ComtorJDBCDao dao, String query)
-            throws ComtorDaoException {
+    /**
+     * @param stmt
+     * @param rs
+     */
+    private static void safeClose(Statement stmt, ResultSet rs) {
+        try {
+            if (rs != null) {
+                rs.close();
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+
+        try {
+            if (stmt != null) {
+                stmt.close();
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private static void safeClose(PreparedStatement stmt, ResultSet rs) {
+        try {
+            if (rs != null) {
+                rs.close();
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+
+        try {
+            if (stmt != null) {
+                stmt.close();
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    public static ComtorDaoData executeQuery(ComtorJDBCDao dao, String query) throws ComtorDaoException {
         return executeQuery(dao, query, 0, -1);
     }
 
-    public static ComtorDaoData executeQueryWithParams(ComtorJDBCDao dao,
-            String query, long firstResult, long maxResults, Object... params)
-            throws ComtorDaoException {
+    public static ComtorDaoData executeQueryWithParams(ComtorJDBCDao dao, String query, long firstResult, long maxResults, Object... params) throws ComtorDaoException {
         return executeQueryWithParams(dao, query, false, firstResult, maxResults, params);
     }
 
-    public static ComtorDaoData executeQueryWithParams(ComtorJDBCDao dao, String query,
-            boolean withLabels, long firstResult, long maxResults, Object... params)
-            throws ComtorDaoException {
+    public static ComtorDaoData executeQueryWithParams(ComtorJDBCDao dao, String query, boolean withLabels, long firstResult, long maxResults, Object... params) throws ComtorDaoException {
         PreparedStatement ps = null;
         ResultSet rs = null;
 
         try {
-            ps = dao.getJdbcConnection().prepareStatement(query,
-                    ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            ps = dao.getJdbcConnection().prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            int param_count = 1;
 
-            if ((params != null) && (params.length > 0)) {
-                int pos = 1;
-
+            if (params != null) {
                 for (Object object : params) {
-                    Class classType = (object == null) ? Object.class : object.getClass();
+                    if (object == null) {
+                        System.out.println("object==null ");
 
-                    assignValueInPreparedStatement(ps, pos, classType, object);
+                        assignValueInPreparedStatement(ps, param_count, Object.class, object);
+                    } else {
+                        System.out.println("object!=null " + object);
 
-                    pos++;
+                        assignValueInPreparedStatement(ps, param_count, object.getClass(), object);
+                    }
+
+                    param_count++;
                 }
             }
 
             rs = ps.executeQuery();
-
             ComtorDaoData data = new ComtorDaoData();
-
             rs.beforeFirst();
 
-            if ((firstResult != 0) && !rs.absolute((int) firstResult)) {
+            if (firstResult != 0 && !rs.absolute((int) firstResult)) {
                 return data;
             }
 
@@ -693,9 +759,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             int columnCount = metaData.getColumnCount();
 
             for (int i = 1; i <= columnCount; i++) {
-                String name = withLabels
-                        ? metaData.getColumnLabel(i)
-                        : metaData.getColumnName(i);
+                String name = withLabels ? metaData.getColumnLabel(i) : metaData.getColumnName(i);
                 data.addHeader(name);
 
                 String type = metaData.getColumnTypeName(i);
@@ -704,8 +768,8 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
             long count = 0;
 
-            while (rs.next() && ((count < maxResults) || (maxResults < 0))) {
-                LinkedList<Object> row = new LinkedList<>();
+            while (rs.next() && (count < maxResults || maxResults < 0)) {
+                LinkedList<Object> row = new LinkedList<Object>();
 
                 for (int i = 1; i <= columnCount; i++) {
                     try {
@@ -722,11 +786,11 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
             return data;
         } catch (SQLException ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
+            ex.printStackTrace();
 
             throw new ComtorDaoException("[Execute Query] = " + query, ex);
         } finally {
-            safeClose(null, null, ps, rs);
+            safeClose(ps, rs);
         }
     }
 
@@ -737,26 +801,22 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @return
      * @throws net.comtor.dao.ComtorDaoException
      */
-    public static ComtorDaoData executeQuery(ComtorJDBCDao dao, String query,
-            long firstResult, long maxResults) throws ComtorDaoException {
-        Statement stmt = null;
-        ResultSet rs = null;
+    public static ComtorDaoData executeQuery(ComtorJDBCDao dao, String query, long firstResult, long maxResults) throws ComtorDaoException {
+        Statement statement = null;
+        ResultSet set = null;
 
         try {
-            stmt = dao.getJdbcConnection().createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,
-                    ResultSet.CONCUR_READ_ONLY);
-            rs = stmt.executeQuery(query);
-
+            statement = dao.getJdbcConnection().createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            set = statement.executeQuery(query);
             ComtorDaoData data = new ComtorDaoData();
+            set.beforeFirst();
 
-            rs.beforeFirst();
-
-            if ((firstResult != 0) && !rs.absolute((int) firstResult)) {
+            if (firstResult != 0 && !set.absolute((int) firstResult)) {
                 return data;
             }
 
             long count = 0;
-            ResultSetMetaData metaData = rs.getMetaData();
+            ResultSetMetaData metaData = set.getMetaData();
             int columnCount = metaData.getColumnCount();
 
             for (int i = 1; i <= columnCount; i++) {
@@ -767,16 +827,26 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
             }
 
-            while (rs.next() && ((count < maxResults) || (maxResults < 0))) {
-                LinkedList<Object> row = new LinkedList<>();
+            while (set.next() && (count < maxResults || maxResults < 0)) {
+                //ResultSetMetaData metaData = set.getMetaData();
+                //int columnCount = metaData.getColumnCount();
+                LinkedList<Object> row = new LinkedList<Object>();
 
                 for (int i = 1; i <= columnCount; i++) {
                     try {
-                        Object object = rs.getObject(i);
+                        Object object = set.getObject(i);
                         row.add(object);
                     } catch (SQLException ex) {
                         row.add(null);
                     }
+
+//                    if (!readMetaData) {
+//                        String name = metaData.getColumnName(i);
+//                        data.addHeader(name);
+//
+//                        String type = metaData.getColumnTypeName(i);
+//                        data.addType(type);
+//                    }
                 }
 
                 data.addRow(row);
@@ -785,11 +855,11 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
             return data;
         } catch (SQLException ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
+            ex.printStackTrace();
 
             throw new ComtorDaoException("[Execute Query] = " + query, ex);
         } finally {
-            safeClose(null, null, stmt, rs);
+            safeClose(statement, set);
         }
     }
 
@@ -801,8 +871,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @return
      * @throws ComtorDaoException
      */
-    public static Object executeQueryUniqueResult(ComtorJDBCDao dao, String sql,
-            Object... params) throws ComtorDaoException {
+    public static Object executeQueryUniqueResult(ComtorJDBCDao dao, String sql, Object... params) throws ComtorDaoException {
         Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -810,14 +879,16 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         try {
             conn = dao.getJdbcConnection();
             ps = conn.prepareStatement(sql);
-            int pos = 1;
+            int param_count = 1;
 
-            for (Object param : params) {
-                Class classType = (param == null) ? Object.class : param.getClass();
+            for (Object object : params) {
+                if (object == null) {
+                    assignValueInPreparedStatement(ps, param_count, Object.class, object);
+                } else {
+                    assignValueInPreparedStatement(ps, param_count, object.getClass(), object);
+                }
 
-                assignValueInPreparedStatement(ps, pos, classType, param);
-
-                pos++;
+                param_count++;
             }
 
             rs = ps.executeQuery();
@@ -828,11 +899,11 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
             return null;
         } catch (Exception ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
+            ex.printStackTrace();
 
             throw new ComtorDaoException(ex);
         } finally {
-            safeClose(null, null, ps, rs);
+            safeClose(ps, rs);
         }
     }
 
@@ -844,46 +915,43 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @return
      * @throws ComtorDaoException
      */
-    public static int executeUpdate(ComtorJDBCDao dao, String sql, Object... params)
-            throws ComtorDaoException {
+    public static int executeUpdate(ComtorJDBCDao dao, String sql, Object... params) throws ComtorDaoException {
         Connection conn = null;
         PreparedStatement ps = null;
 
         try {
             conn = dao.getJdbcConnection();
             ps = conn.prepareStatement(sql);
-            int pos = 1;
+            int param_count = 1;
 
-            for (Object param : params) {
-                assignValueInPreparedStatement(ps, pos, param.getClass(), param);
-                pos++;
+            for (Object object : params) {
+                assignValueInPreparedStatement(ps, param_count, object.getClass(), object);
+                param_count++;
             }
 
             return ps.executeUpdate();
         } catch (Exception ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
-
+            ex.printStackTrace();
             throw new ComtorDaoException(ex);
         } finally {
-            safeClose(null, null, ps, null);
+            safeClose(ps, null);
         }
     }
 
     /**
      *
      * @param obj
-     * @param daoKey
+     * @param key
      * @param desc
      * @param fields
      * @return
      */
-    private static String getUpdateQuery(ComtorDaoKey daoKey, ComtorJDBCDaoDescriptor desc,
-            LinkedList<ComtorJDBCField> fields) {
+    private static String getUpdateQuery(ComtorDaoKey key, ComtorJDBCDaoDescriptor desc, LinkedList<ComtorJDBCField> fields) {
         StringBuffer setPart = new StringBuffer();
         int count = 0;
 
         for (ComtorJDBCField field : fields) {
-            if (!daoKey.getKeys().containsKey(field.getAttributeName())) {
+            if (!key.getKeys().containsKey(field.getAttributeName())) {
                 setPart.append(" , ");
                 setPart.append(field.getColumnName());
                 setPart.append(" = ? ");
@@ -898,8 +966,8 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         StringBuffer wherePart = new StringBuffer();
         count = 0;
 
-        for (String key : daoKey.getKeys().keySet()) {
-            ComtorJDBCField field = desc.getField(key);
+        for (String k : key.getKeys().keySet()) {
+            ComtorJDBCField field = desc.getField(k);
             wherePart.append(" AND ");
             wherePart.append(field.getColumnName());
             wherePart.append(" = ? ");
@@ -915,21 +983,28 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
     /**
      *
-     * @param daoKey
+     * @param key
      * @param desc
      * @return
      */
-    public static String getFindQuery(ComtorDaoKey daoKey, ComtorJDBCDaoDescriptor desc)
-            throws ComtorDaoException {
-        String query = getFindQuery(desc) + "  WHERE 1 = 1 ";
+    public static String getFindQuery(ComtorDaoKey key, ComtorJDBCDaoDescriptor desc) throws ComtorDaoException {
+        String sql = getFindQuery(desc) + "  WHERE 1 = 1 ";
         String wherePart = "";
+        int count = 0;
 
-        for (String key : daoKey.getKeys().keySet()) {
-            ComtorJDBCField field = desc.getField(key);
+        for (String k : key.getKeys().keySet()) {
+            ComtorJDBCField field = desc.getField(k);
             wherePart += " AND  " + desc.getTableName() + "." + field.getColumnName() + " = ? ";
+            count++;
         }
 
-        return query += wherePart;
+        sql += wherePart;
+
+        if (LOG_EXECUTE_QUERY) {
+            System.err.println(">>> SQL: " + sql);
+        }
+
+        return sql;
     }
 
     /**
@@ -942,8 +1017,9 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         String columnsSelect = getFindQueryFields(descriptor);
         String joins = getFindQueryJoins(descriptor);
         String tableNames = getFindQueryTables(descriptor);
+        String sql = "SELECT " + columnsSelect + " FROM " + tableNames + joins;
 
-        return "SELECT " + columnsSelect + " FROM " + tableNames + joins;
+        return sql;
     }
 
     /**
@@ -966,11 +1042,13 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         LinkedList<String> assign = new LinkedList<>();
 
         for (ComtorJDBCJoin join : descriptor.getJoins()) {
-            ComtorJDBCDaoDescriptor foreingClassDescriptor = join.getForeingClassDescriptor();
+            String tableName = "";
 
-            String tableName = (foreingClassDescriptor == null)
-                    ? join.getTableName()
-                    : foreingClassDescriptor.getTableName();
+            if (join.getForeingClassDescriptor() != null) {
+                tableName = join.getForeingClassDescriptor().getTableName();
+            } else {
+                tableName = join.getTableName();
+            }
 
             String joinStr = " ";
 
@@ -1008,15 +1086,14 @@ public class ComtorJDBCDao extends AbstractComtorDao {
                     leftJoin.append(" LEFT JOIN " + foreingField.getDescriptor().getTableName() + " AS " + foreingFieldName);
                 }
 
+                //leftJoin = leftJoin + " LEFT JOIN " + foreingField.getDescriptor().getTableName() + "  " + foreingFieldName;
                 String on = "";
                 LinkedList<ComtorJDBCField> findableFields = foreingField.getDescriptor().getFindFields();
 
                 if (findableFields.size() == foreingField.getReferencesColumn().length) {
                     for (int i = 0; i < findableFields.size(); i++) {
                         ComtorJDBCField findableField = findableFields.get(i);
-
-                        on = on + " AND " + foreingFieldName + "." + findableField.getColumnName()
-                                + " = " + descriptor.getTableName()
+                        on = on + " AND " + foreingFieldName + "." + findableField.getColumnName() + " = " + descriptor.getTableName()
                                 + "." + foreingField.getReferencesColumn()[i];
                     }
                 }
@@ -1066,29 +1143,21 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             }
         }
 
-        columnsSelect = columnsSelect.endsWith(", ")
-                ? columnsSelect.substring(0, columnsSelect.length() - 2)
-                : columnsSelect;
+        columnsSelect = columnsSelect.endsWith(", ") ? columnsSelect.substring(0, columnsSelect.length() - 2) : columnsSelect;
 
         for (ComtorJDBCForeingField foreingField : foreingFields) {
             String foreingFieldName = getForeingFieldName(foreingField, descriptor);
-            columnsSelect = columnsSelect + ", " + foreingFieldName
-                    + "." + foreingField.getForeingColumn()
-                    + " AS " + foreingField.getAttributeName();
+            columnsSelect = columnsSelect + ", " + foreingFieldName + "." + foreingField.getForeingColumn() + " AS " + foreingField.getAttributeName();
         }
 
         for (ComtorJDBCForeingFieldByJoin field : foreingFieldsByJoin) {
             ComtorJDBCJoin join = descriptor.getJoin(field.getJoinAlias());
 
-            if (join.getForeingClassDescriptor() == null) {
-                columnsSelect += ", " + join.getAlias()
-                        + "." + field.getForeingFieldName()
-                        + " AS " + field.getAttributeName();
-            } else {
+            if (join.getForeingClassDescriptor() != null) {
                 descriptor = join.getForeingClassDescriptor();
-                columnsSelect += ", " + join.getAlias() + "."
-                        + descriptor.getField(field.getForeingFieldName()).getColumnName()
-                        + " AS " + field.getAttributeName();
+                columnsSelect += ", " + join.getAlias() + "." + descriptor.getField(field.getForeingFieldName()).getColumnName() + " AS " + field.getAttributeName();
+            } else {
+                columnsSelect += ", " + join.getAlias() + "." + field.getForeingFieldName() + " AS " + field.getAttributeName();
             }
         }
 
@@ -1117,8 +1186,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @param descriptor
      * @return
      */
-    private synchronized static String getForeingFieldName(ComtorJDBCForeingField foreingField,
-            ComtorJDBCDaoDescriptor descriptor) {
+    private synchronized static String getForeingFieldName(ComtorJDBCForeingField foreingField, ComtorJDBCDaoDescriptor descriptor) {
         HashMap<ComtorJDBCForeingField, String> map = new HashMap<>();
         int count = 1;
 
@@ -1171,18 +1239,18 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         String strTablePart = null;
         String strValuePart = null;
 
-        if (fields.isEmpty()) {
-            strTablePart = tablePart.toString();
-            strValuePart = valuePart.toString();
-        } else {
+        if (fields.size() > 0) {
             strTablePart = tablePart.substring(1);
             strValuePart = valuePart.substring(1);
+        } else {
+            strTablePart = tablePart.toString();
+            strValuePart = valuePart.toString();
         }
 
-        return ""
-                + "INSERT INTO "
-                + desc.getTableName() + " (" + strTablePart + ") "
-                + "VALUES (" + strValuePart + ") ";
+        String sql = "INSERT INTO " + desc.getTableName() + " (" + strTablePart + ") VALUES (" + strValuePart + ") ";
+
+        return sql;
+
     }
 
     /**
@@ -1193,23 +1261,23 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      */
     public long getNextId(ComtorDaoDescriptor desc) throws ComtorDaoException {
         ComtorJDBCDaoDescriptor daoDescriptor = castDescriptor(desc);
-        String query = daoDescriptor.getSequenceQuery();
+        String sql = daoDescriptor.getSequenceQuery();
         ResultSet rs = null;
         Statement stmt = null;
 
         try {
             stmt = getJdbcConnection().createStatement();
-            rs = stmt.executeQuery(query);
+            rs = stmt.executeQuery(sql);
 
             if (rs.next()) {
                 return rs.getLong(1);
+            } else {
+                throw new ComtorDaoException("Bad sequence query " + sql);
             }
-
-            throw new ComtorDaoException("Bad sequence query " + query);
         } catch (Exception ex) {
             throw new ComtorDaoException("Id Creation error", ex);
         } finally {
-            safeClose(null, null, stmt, rs);
+            safeClose(stmt, rs);
         }
     }
 
@@ -1219,36 +1287,40 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @param desc
      * @param firstResult
      * @param maxResults
-     * @param params
+     * @param parameters
      * @return
      * @throws ComtorDaoException
      */
     @Override
-    public LinkedList<Object> findAllRange(String queryString, ComtorDaoDescriptor desc,
-            long firstResult, long maxResults, Object... params) throws ComtorDaoException {
+    public LinkedList<Object> findAllRange(String queryString, ComtorDaoDescriptor desc, long firstResult, long maxResults, Object... parameters) throws ComtorDaoException {
         ComtorJDBCDaoDescriptor descriptor = (ComtorJDBCDaoDescriptor) desc;
         PreparedStatement ps = null;
         ResultSet rs = null;
 
         try {
-            LinkedList<Object> resp = new LinkedList<>();
-            ps = getJdbcConnection().prepareStatement(queryString,
-                    ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-            int pos = 1;
+            LinkedList<Object> resp = new LinkedList<Object>();
+            ps = getJdbcConnection().prepareStatement(queryString, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 
-            for (Object param : params) {
-                Class classType = (param == null) ? Object.class : param.getClass();
-                Object value = (param == null) ? null : param;
-
-                assignValueInPreparedStatement(ps, pos, classType, value);
-
-                pos++;
+            if (LOG_EXECUTE_QUERY) {
+                System.err.println(">>> SQL: " + queryString);
             }
 
+            int paramCount = 1;
+
+            for (Object param : parameters) {
+                if (param == null) {
+                    assignValueInPreparedStatement(ps, paramCount, Object.class, null);
+                } else {
+                    assignValueInPreparedStatement(ps, paramCount, param.getClass(), param);
+                }
+
+                paramCount++;
+            }
+            //System.out.println("ee "+ps.toString());
             rs = ps.executeQuery();
             rs.beforeFirst();
-
-            if ((firstResult != 0) && !rs.absolute((int) firstResult)) {
+            //System.out.println("FF "+rs.getMetaData().toString());
+            if (firstResult != 0 && !rs.absolute((int) firstResult)) {
                 return resp;
             }
 
@@ -1262,39 +1334,43 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             }
 
             return resp;
-        } catch (SQLException | InstantiationException | IllegalAccessException ex) {
+        } catch (Exception ex) {
             throw new ComtorDaoException("execute Query " + queryString, ex);
         } finally {
-            safeClose(null, null, ps, rs);
+            safeClose(ps, rs);
         }
     }
 
-    public LinkedList<Object> findAllRangeSqlite(String queryString, ComtorDaoDescriptor desc,
-            long firstResult, long maxResults, Object... parameters)
+    public LinkedList<Object> findAllRangeSqlite(String queryString, ComtorDaoDescriptor desc, long firstResult, long maxResults, Object... parameters)
             throws ComtorDaoException {
         ComtorJDBCDaoDescriptor descriptor = (ComtorJDBCDaoDescriptor) desc;
         PreparedStatement ps = null;
         ResultSet rs = null;
 
         try {
-            LinkedList<Object> resp = new LinkedList<>();
-            ps = getJdbcConnection().prepareStatement(queryString,
-                    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-            int pos = 1;
+            LinkedList<Object> resp = new LinkedList<Object>();
+            ps = getJdbcConnection().prepareStatement(queryString, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+
+            if (LOG_EXECUTE_QUERY) {
+                System.err.println(">>> SQL: " + queryString);
+            }
+
+            int paramCount = 1;
 
             for (Object param : parameters) {
-                Class classType = (param == null) ? Object.class : param.getClass();
-                Object value = (param == null) ? null : param;
+                if (param == null) {
+                    assignValueInPreparedStatement(ps, paramCount, Object.class, null);
+                } else {
+                    assignValueInPreparedStatement(ps, paramCount, param.getClass(), param);
+                }
 
-                assignValueInPreparedStatement(ps, pos, classType, value);
-
-                pos++;
+                paramCount++;
             }
 
             rs = ps.executeQuery();
             long count = 0;
 
-            while (rs.next() && ((count < maxResults) || (maxResults < 0))) {
+            while (rs.next() && (count < maxResults || maxResults < 0)) {
                 Object obj = descriptor.getObjectClass().newInstance();
                 fillObject(obj, rs, descriptor);
                 resp.add(obj);
@@ -1302,10 +1378,10 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             }
 
             return resp;
-        } catch (SQLException | InstantiationException | IllegalAccessException ex) {
+        } catch (Exception ex) {
             throw new ComtorDaoException("execute Query " + queryString, ex);
         } finally {
-            safeClose(null, null, ps, rs);
+            safeClose(ps, rs);
         }
     }
 
@@ -1316,8 +1392,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @return
      * @throws net.comtor.dao.ComtorDaoException
      */
-    public LinkedList<Object> findAll(String query, ComtorDaoDescriptor desc, Object... params)
-            throws ComtorDaoException {
+    public LinkedList<Object> findAll(String query, ComtorDaoDescriptor desc, Object... params) throws ComtorDaoException {
         return findAllRange(query, desc, 0, -1, params);
     }
 
@@ -1329,12 +1404,11 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @return List of object that have the specified key's values.
      * @throws ComtorDaoException
      */
-    public LinkedList<Object> findAll(ComtorDaoKey key, ComtorJDBCDaoDescriptor descriptor)
-            throws ComtorDaoException {
-        String query = getFindQuery(key, descriptor);
+    public LinkedList<Object> findAll(ComtorDaoKey key, ComtorJDBCDaoDescriptor descriptor) throws ComtorDaoException {
+        String sql = getFindQuery(key, descriptor);
         Object[] values = key.getKeys().values().toArray();
 
-        return findAll(query, descriptor, values);
+        return findAll(sql, descriptor, values);
     }
 
     /**
@@ -1352,11 +1426,11 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
             return true;
         } catch (Exception ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
+            ex.printStackTrace();
 
             throw new ComtorDaoException("execute Query " + queryString, ex);
         } finally {
-            safeClose(null, null, stmt, null);
+            safeClose(stmt);
         }
     }
 
@@ -1368,29 +1442,30 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @return
      * @throws ComtorDaoException
      */
-    public static boolean execute(ComtorJDBCDao dao, String queryString, Object... params)
-            throws ComtorDaoException {
+    public static boolean execute(ComtorJDBCDao dao, String queryString, Object... params) throws ComtorDaoException {
         PreparedStatement ps = null;
 
         try {
             ps = dao.getJdbcConnection().prepareStatement(queryString);
-            int pos = 1;
+            int param_count = 1;
 
-            for (Object param : params) {
-                Class classType = (param == null) ? Object.class : param.getClass();
+            for (Object object : params) {
+                if (object == null) {
+                    assignValueInPreparedStatement(ps, param_count, Object.class, object);
+                } else {
+                    assignValueInPreparedStatement(ps, param_count, object.getClass(), object);
+                }
 
-                assignValueInPreparedStatement(ps, pos, classType, param);
-
-                pos++;
+                param_count++;
             }
 
             return ps.execute();
         } catch (Exception ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
+            ex.printStackTrace();
 
             throw new ComtorDaoException("execute Query " + queryString, ex);
         } finally {
-            safeClose(null, null, ps, null);
+            safeClose(ps);
         }
     }
 
@@ -1402,28 +1477,30 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      * @return
      * @throws net.comtor.dao.ComtorDaoException
      */
-    public static long countResultsQuery(ComtorJDBCDao dao, String queryString, Object... params)
-            throws ComtorDaoException {
+    public static long countResultsQuery(ComtorJDBCDao dao, String queryString, Object... params) throws ComtorDaoException {
         PreparedStatement ps = null;
         ResultSet rs = null;
 
         try {
-            String query = "SELECT COUNT(1) FROM (" + queryString + ") ";
+            String sql = "SELECT COUNT(1) FROM (" + queryString + ") ";
 
             if (!dao.driver.equals(DRIVER_ORACLE) || dao.driver.equals(DRIVER_ORACLE_2)) {
-                query += "   QTY ";
+                //TODO: Arreglar el lio  del AS
+                //sql += " AS  QTY ";
+                sql += "   QTY ";
             }
 
-            ps = dao.getJdbcConnection().prepareStatement(query,
-                    ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-            int pos = 1;
+            ps = dao.getJdbcConnection().prepareStatement(sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            int param_count = 1;
 
-            for (Object param : params) {
-                Class classType = (param == null) ? Object.class : param.getClass();
+            for (Object object : params) {
+                if (object == null) {
+                    assignValueInPreparedStatement(ps, param_count, Object.class, object);
+                } else {
+                    assignValueInPreparedStatement(ps, param_count, object.getClass(), object);
+                }
 
-                assignValueInPreparedStatement(ps, pos, classType, param);
-
-                pos++;
+                param_count++;
             }
 
             rs = ps.executeQuery();
@@ -1434,22 +1511,25 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
             return -1;
         } catch (Exception ex) {
-            LOG.log(Level.SEVERE, ex.getMessage(), ex);
-
+            ex.printStackTrace();
             throw new ComtorDaoException("Query : " + queryString + " -> " + ex.getMessage());
         } finally {
-            safeClose(null, null, ps, rs);
+            safeClose(ps, rs);
         }
     }
 
-    public static String buildPreparedStatementWildcards(int numWildcards) {
-        StringBuilder sb = new StringBuilder(numWildcards * 2);
-
-        for (int i = 0; i < numWildcards; i++) {
-            sb.append("?").append((i < numWildcards - 1) ? "," : "");
+    /**
+     *
+     * @param stmt
+     */
+    private static void safeClose(Statement stmt) {
+        if (stmt != null) {
+            try {
+                stmt.close();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
         }
-
-        return sb.toString();
     }
 
     public static void safeClose(ComtorJDBCDao dao, Connection conn, Statement stmt, ResultSet rs) {
@@ -1484,5 +1564,15 @@ public class ComtorJDBCDao extends AbstractComtorDao {
                 LOG.log(Level.SEVERE, ex.getMessage(), ex);
             }
         }
+    }
+
+    public static String buildPreparedStatementWildcards(int numWildcards) {
+        StringBuilder sb = new StringBuilder(numWildcards * 2);
+
+        for (int i = 0; i < numWildcards; i++) {
+            sb.append("?").append((i < numWildcards - 1) ? "," : "");
+        }
+
+        return sb.toString();
     }
 }

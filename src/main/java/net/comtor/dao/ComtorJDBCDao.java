@@ -477,14 +477,11 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             Annotation[] annotations = field.getAnnotations();
 
             for (Annotation annotation : annotations) {
-                //System.err.println("NEXT_ID "+"set" + field.getName().substring(0, 1).toUpperCase() + field.getName().substring(1, field.getName().length()));
-
-                if (annotation.annotationType().equals(ComtorId.class)) {
+               if (annotation.annotationType().equals(ComtorId.class)) {
                     String keyName = field.getName();
                     String keyMethodName = "set" + keyName.substring(0, 1).toUpperCase() + keyName.substring(1, keyName.length());
                     long nextId = this.getNextId(descriptor);
 
-                    //System.err.println("NEXT_ID "+nextId);
                     if (nextId != 0) {
                         try {
                             Method methodSet = clazz.getMethod(keyMethodName, long.class);

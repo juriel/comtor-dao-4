@@ -2,14 +2,13 @@
  * ComtorException.java
  *
  * Created on July 19, 2007, 4:21 AM
- *
- * To change this template, choose Tools | Template Manager
- * and open the template in the editor.
  */
 
 package net.comtor.exception;
 
-public class ComtorException extends Exception{
+import java.io.IOException;
+
+public class ComtorException extends IOException{
     
 	private static final long serialVersionUID = 1L;
     

@@ -1,5 +1,6 @@
 package net.comtor.dao;
 
+import java.io.Closeable;
 import java.util.LinkedList;
 
 /**
@@ -8,7 +9,7 @@ import java.util.LinkedList;
  * it's available to stores and recover Element
  *
  */
-public interface ComtorDao {
+public interface ComtorDao extends Closeable{
 
     /**
      * Updates element using element info and ComtoDaoKey from desc
@@ -66,6 +67,7 @@ public interface ComtorDao {
      *
      * @throws net.comtor.dao.ComtorDaoException
      */
+    @Override
     void close() throws ComtorDaoException;
 
     /**

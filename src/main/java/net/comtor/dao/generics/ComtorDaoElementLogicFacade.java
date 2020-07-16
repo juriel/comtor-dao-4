@@ -408,7 +408,7 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
      */
     @Override
     public String getFindQuery() throws ComtorDaoException {
-        return ComtorJDBCDao.getFindQuery(getTableDescriptorType());
+            return ComtorJDBCDao.getFindQuery(getTableDescriptorType());
     }
 
     /**

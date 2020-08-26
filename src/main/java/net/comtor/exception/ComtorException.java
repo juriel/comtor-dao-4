@@ -9,9 +9,8 @@ package net.comtor.exception;
 import java.io.IOException;
 
 public class ComtorException extends IOException{
-    
-	private static final long serialVersionUID = 1L;
-    
+
+    private static final long serialVersionUID = 1L;
     private String message = null;
     private Throwable originalException = null;
         

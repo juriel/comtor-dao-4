@@ -1,11 +1,12 @@
-package net.comtor.exception;
+package net.comtor.dao.exception;
+
+import net.comtor.exception.ComtorException;
 
 /**
  *
  * @author jorgegarcia
  */
-public class BusinessLogicException
-        extends ComtorException {
+public class BusinessLogicException extends ComtorException {
 
     /**
      *

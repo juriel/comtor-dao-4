@@ -1,4 +1,4 @@
-package net.comtor.dao.exception;
+package net.comtor.exception;
 
 import net.comtor.exception.ComtorException;
 

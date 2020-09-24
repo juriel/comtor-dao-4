@@ -9,7 +9,7 @@ import java.util.LinkedList;
  * it's available to stores and recover Element
  *
  */
-public interface ComtorDao extends Closeable{
+public interface ComtorDao extends Closeable {
 
     /**
      * Updates element using element info and ComtoDaoKey from desc

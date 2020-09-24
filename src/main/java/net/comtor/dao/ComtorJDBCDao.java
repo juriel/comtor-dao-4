@@ -34,6 +34,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     private static final Logger LOG = Logger.getLogger(ComtorJDBCDao.class.getName());
 
     public static boolean LOG_EXECUTE_QUERY = false;
+
     public static final String DRIVER_SQL_SERVER = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
     public static final String DRIVER_POSTGRES = "org.postgresql.Driver";
     public static final String DRIVER_MYSQL = "com.mysql.jdbc.Driver";
@@ -52,8 +53,8 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     String user;
     String password;
 
-    public ComtorJDBCDao(Connection con) throws ComtorDaoException {
-        jdbcConnection = con;
+    public ComtorJDBCDao(Connection conn) throws ComtorDaoException {
+        jdbcConnection = conn;
     }
 
     /**
@@ -64,6 +65,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      */
     public ComtorJDBCDao(String driver, String url) throws ComtorDaoException {
         super();
+
         this.driver = driver;
         this.url = url;
 
@@ -84,6 +86,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      */
     public ComtorJDBCDao(String driver, String url, String user, String password) throws ComtorDaoException {
         super();
+
         this.driver = driver;
         this.url = url;
         this.user = user;
@@ -131,6 +134,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     /**
      * close jdbc Connnection
      */
+    @Override
     public void close() {
         try {
             if (jdbcConnection != null) {
@@ -442,8 +446,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     public void preInsert(Object object, ComtorJDBCDaoDescriptor descriptor) throws ComtorDaoException {
         String sequenceQuery = descriptor.getSequenceQuery();
 
-        if (sequenceQuery != null && descriptor.getSequenceTypeInsert() == ComtorJDBCDaoDescriptor.SEQUENCE_PRE_INSERT) {
-
+        if ((sequenceQuery != null) && (descriptor.getSequenceTypeInsert() == ComtorJDBCDaoDescriptor.SEQUENCE_PRE_INSERT)) {
             setIdFromSequence(object, descriptor);
         }
     }
@@ -457,7 +460,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     public void postInsert(Object object, ComtorJDBCDaoDescriptor descriptor) throws ComtorDaoException {
         String sequenceQuery = descriptor.getSequenceQuery();
 
-        if (sequenceQuery != null && descriptor.getSequenceTypeInsert() == ComtorJDBCDaoDescriptor.SEQUENCE_POST_INSERT) {
+        if ((sequenceQuery != null) && (descriptor.getSequenceTypeInsert() == ComtorJDBCDaoDescriptor.SEQUENCE_POST_INSERT)) {
             setIdFromSequence(object, descriptor);
         }
     }
@@ -477,7 +480,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             Annotation[] annotations = field.getAnnotations();
 
             for (Annotation annotation : annotations) {
-               if (annotation.annotationType().equals(ComtorId.class)) {
+                if (annotation.annotationType().equals(ComtorId.class)) {
                     String keyName = field.getName();
                     String keyMethodName = "set" + keyName.substring(0, 1).toUpperCase() + keyName.substring(1, keyName.length());
                     long nextId = this.getNextId(descriptor);
@@ -766,7 +769,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             long count = 0;
 
             while (rs.next() && (count < maxResults || maxResults < 0)) {
-                LinkedList<Object> row = new LinkedList<Object>();
+                LinkedList<Object> row = new LinkedList<>();
 
                 for (int i = 1; i <= columnCount; i++) {
                     try {
@@ -827,7 +830,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             while (set.next() && (count < maxResults || maxResults < 0)) {
                 //ResultSetMetaData metaData = set.getMetaData();
                 //int columnCount = metaData.getColumnCount();
-                LinkedList<Object> row = new LinkedList<Object>();
+                LinkedList<Object> row = new LinkedList<>();
 
                 for (int i = 1; i <= columnCount; i++) {
                     try {
@@ -1105,8 +1108,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     }
 
     /**
-     * Retorna la parte de campos que van a hacer seleccionados ejm:
-     * tabla.campo1, tabla.
+     * Retorna la parte de campos que van a hacer seleccionados ejm: tabla.campo1, tabla.
      *
      *
      * @param descriptor
@@ -1295,7 +1297,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         ResultSet rs = null;
 
         try {
-            LinkedList<Object> resp = new LinkedList<Object>();
+            LinkedList<Object> resp = new LinkedList<>();
             ps = getJdbcConnection().prepareStatement(queryString, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 
             if (LOG_EXECUTE_QUERY) {
@@ -1345,7 +1347,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         ResultSet rs = null;
 
         try {
-            LinkedList<Object> resp = new LinkedList<Object>();
+            LinkedList<Object> resp = new LinkedList<>();
             ps = getJdbcConnection().prepareStatement(queryString, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 
             if (LOG_EXECUTE_QUERY) {

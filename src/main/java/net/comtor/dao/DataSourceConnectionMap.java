@@ -40,23 +40,7 @@ public class DataSourceConnectionMap {
             basicDataSource.setValidationQueryTimeout(30);
             //basicDataSource.setMaxWait(20000);
             basicDataSource.setMinEvictableIdleTimeMillis(MIN_EVICTABLE_IDLE_TIMEOUT_MILLIS);
-
-            switch (driver) {
-                case ComtorJDBCDao.DRIVER_POSTGRES:
-                    basicDataSource.setValidationQuery("SELECT 1+1");
-                    break;
-                case ComtorJDBCDao.DRIVER_MYSQL:
-                    basicDataSource.setValidationQuery("SELECT 1+1");
-                    break;
-                case ComtorJDBCDao.DRIVER_ORACLE:
-                case ComtorJDBCDao.DRIVER_ORACLE_2:
-                    basicDataSource.setValidationQuery("SELECT 1+1 FROM DUAL");
-                    break;
-                case ComtorJDBCDao.DRIVER_SQL_SERVER:
-                    basicDataSource.setValidationQuery("SELECT 1+1");
-                    break;
-            }
-
+            basicDataSource.setValidationQuery(getValidationQuery(driver));
             basicDataSource.setTestWhileIdle(true);
 
             dataSourceMap.put(key, basicDataSource);
@@ -73,5 +57,21 @@ public class DataSourceConnectionMap {
 
     public static void destroyInstance() {
         instance = null;
+    }
+
+    private static String getValidationQuery(final String driver) {
+        switch (driver) {
+            case ComtorJDBCDao.DRIVER_POSTGRES:
+                return "SELECT 1+1";
+            case ComtorJDBCDao.DRIVER_MYSQL:
+                return "SELECT 1+1";
+            case ComtorJDBCDao.DRIVER_ORACLE:
+            case ComtorJDBCDao.DRIVER_ORACLE_2:
+                return "SELECT 1+1 FROM DUAL";
+            case ComtorJDBCDao.DRIVER_SQL_SERVER:
+                return "SELECT 1+1";
+            default:
+                return "";
+        }
     }
 }

@@ -38,11 +38,7 @@ public class ComtorException extends IOException {
     }
 
     public String getMessage() {
-        if (message == null) {
-            return super.getMessage();
-        }
-
-        return message;
+        return (message == null) ? super.getMessage() : message;
     }
 
     public Throwable getOriginalException() {
@@ -50,10 +46,6 @@ public class ComtorException extends IOException {
     }
 
     public String getOriginalMessage() {
-        if (originalException == null) {
-            return "No original message";
-        }
-
-        return originalException.getMessage();
+        return (originalException == null) ? "No original message" : originalException.getMessage();
     }
 }

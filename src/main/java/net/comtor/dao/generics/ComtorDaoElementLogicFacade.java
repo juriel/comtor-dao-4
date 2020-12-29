@@ -50,27 +50,17 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
 
     private void initDescriptor(Class<? extends ComtorJDBCDao> classDao) {
         try {
-            if (classDao == null) {
-                descriptor = new AnnotationsJDBCDaoDescriptor(elementType);
-            } else {
-                descriptor = new AnnotationsJDBCDaoDescriptor(elementType, classDao);
-            }
+            descriptor = (classDao == null) ? new AnnotationsJDBCDaoDescriptor(elementType) : new AnnotationsJDBCDaoDescriptor(elementType, classDao);
         } catch (ComtorDaoException ex) {
             ex.printStackTrace();
         }
     }
 
     private void initDriver() {
-        ComtorJDBCDao dao = null;
-        try {
-            dao = ApplicationComtorDaoFactory.getFactory().buildComtorDao(descriptor.getClassDao());
+        try (ComtorJDBCDao dao = ApplicationComtorDaoFactory.getFactory().buildComtorDao(descriptor.getClassDao())) {
             descriptor.setDriver(dao.getDriver());
         } catch (Exception ex) {
             ex.printStackTrace();
-        } finally {
-            if (dao != null) {
-                dao.close();
-            }
         }
     }
 
@@ -151,16 +141,8 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
     }
 
     public E findByProperty(ComtorDaoKey daoKey) throws ComtorDaoException {
-        ComtorJDBCDao dao = null;
-
-        try {
-            dao = getComtorJDBCDao();
-
+        try (ComtorJDBCDao dao = getComtorJDBCDao()) {
             return findByProperty(dao, daoKey);
-        } finally {
-            if (dao != null) {
-                dao.close();
-            }
         }
     }
 
@@ -184,16 +166,8 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
 
     @Override
     public LinkedList<E> findAllByProperty(String property, Object value) throws ComtorDaoException {
-        ComtorJDBCDao dao = null;
-
-        try {
-            dao = getComtorJDBCDao();
-
+        try (ComtorJDBCDao dao = getComtorJDBCDao()) {
             return findAllByProperty(dao, new ComtorDaoKey(property, value));
-        } finally {
-            if (dao != null) {
-                dao.close();
-            }
         }
     }
 
@@ -215,15 +189,15 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
     /**
      * Becomes the list of objects into a typed list.
      *
-     * @param objects List of objects.
+     * @param entities List of objects.
      * @return Typed list.
      * @since May 27, 2015
      */
-    private LinkedList<E> toTypedList(LinkedList<Object> objects) {
+    private LinkedList<E> toTypedList(LinkedList<Object> entities) {
         LinkedList<E> list = new LinkedList<>();
 
-        for (Object object : objects) {
-            list.add((E) object);
+        for (Object entity : entities) {
+            list.add((E) entity);
         }
 
         return list;
@@ -236,31 +210,15 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
      */
     @Override
     public void create(E entity) throws ComtorDaoException {
-        ComtorJDBCDao dao = null;
-
-        try {
-            dao = getComtorJDBCDao();
-
+        try (ComtorJDBCDao dao = getComtorJDBCDao()) {
             create(dao, entity);
-        } finally {
-            if (dao != null) {
-                dao.close();
-            }
         }
     }
 
     public void create(Collection<E> entities) throws ComtorDaoException {
-        ComtorJDBCDao dao = null;
-
-        try {
-            dao = getComtorJDBCDao();
-
+        try (ComtorJDBCDao dao = getComtorJDBCDao()) {
             for (E entity : entities) {
                 create(dao, entity);
-            }
-        } finally {
-            if (dao != null) {
-                dao.close();
             }
         }
     }
@@ -276,17 +234,10 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
      */
     @Override
     public void edit(E entity) throws ComtorDaoException {
-        ComtorJDBCDao dao = null;
-
-        try {
-            dao = getComtorJDBCDao();
+        try (ComtorJDBCDao dao = getComtorJDBCDao()) {
             edit(dao, entity);
         } catch (Exception ex) {
             throw new ComtorDaoException(ex);
-        } finally {
-            if (dao != null) {
-                dao.close();
-            }
         }
     }
 
@@ -301,18 +252,10 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
      */
     @Override
     public void remove(E entity) throws ComtorDaoException {
-        ComtorJDBCDao dao = null;
-
-        try {
-            dao = getComtorJDBCDao();
-
+        try (ComtorJDBCDao dao = getComtorJDBCDao()) {
             remove(dao, entity);
         } catch (Exception ex) {
             throw new ComtorDaoException(ex);
-        } finally {
-            if (dao != null) {
-                dao.close();
-            }
         }
     }
 
@@ -320,12 +263,12 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
         dao.deleteElement(entity, getTableDescriptorType());
     }
 
-    
     public LinkedList<E> findAll() throws ComtorDaoException {
-        Object params [] = new Object[0];
+        Object[] params = new Object[0];
+
         return findAll(getFindQuery(), params);
     }
-    
+
     /**
      *
      * @param queryString
@@ -345,7 +288,6 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
     public LinkedList<E> findAllSqllite(ComtorJDBCDao dao, String queryString, long firsResult, long maxResults, Object... params) throws ComtorDaoException {
         try {
             LinkedList<Object> objects = dao.findAllRangeSqlite(queryString, getTableDescriptorType(), firsResult, maxResults, params);
-
             LinkedList<E> entities = new LinkedList<>();
 
             for (Object object : objects) {
@@ -371,23 +313,14 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
      */
     @Override
     public LinkedList<E> findAll(String queryString, long firsResult, long maxResults, Object... params) throws ComtorDaoException {
-        ComtorJDBCDao dao = null;
-
-        try {
-            dao = getComtorJDBCDao();
-
+        try (ComtorJDBCDao dao = getComtorJDBCDao()) {
             return findAll(dao, queryString, firsResult, maxResults, params);
-        } finally {
-            if (dao != null) {
-                dao.close();
-            }
         }
     }
 
     public LinkedList<E> findAll(ComtorJDBCDao dao, String queryString, long firsResult, long maxResults, Object... params) throws ComtorDaoException {
         try {
             LinkedList<Object> objects = dao.findAllRange(queryString, getTableDescriptorType(), firsResult, maxResults, params);
-
             LinkedList<E> entities = new LinkedList<>();
 
             for (Object object : objects) {
@@ -408,7 +341,7 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
      */
     @Override
     public String getFindQuery() throws ComtorDaoException {
-            return ComtorJDBCDao.getFindQuery(getTableDescriptorType());
+        return ComtorJDBCDao.getFindQuery(getTableDescriptorType());
     }
 
     /**
@@ -417,18 +350,10 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
      * @return @throws net.comtor.dao.ComtorDaoException
      */
     public long getCountElements(String queryString) throws ComtorDaoException {
-        ComtorJDBCDao dao = null;
-
-        try {
-            dao = getComtorJDBCDao();
-
+        try (ComtorJDBCDao dao = getComtorJDBCDao()) {
             return ComtorJDBCDao.countResultsQuery(dao, queryString);
         } catch (Exception ex) {
             throw new ComtorDaoException(ex);
-        } finally {
-            if (dao != null) {
-                dao.close();
-            }
         }
     }
 
@@ -440,18 +365,10 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
      */
     @Override
     public long getCountElements(String queryString, Object... params) throws ComtorDaoException {
-        ComtorJDBCDao dao = null;
-
-        try {
-            dao = getComtorJDBCDao();
-
+        try (ComtorJDBCDao dao = getComtorJDBCDao()) {
             return ComtorJDBCDao.countResultsQuery(dao, queryString, params);
         } catch (Exception ex) {
             throw new ComtorDaoException(ex);
-        } finally {
-            if (dao != null) {
-                dao.close();
-            }
         }
     }
 
@@ -468,53 +385,6 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
 
     /**
      *
-     * @param entity
-     * @param nameField
-     */
-//    public void loadChildElements(E entity, String nameField) {
-//        Class clazz = getElementType();
-//        ComtorJDBCDao dao = null;
-//        try {
-//            dao = getComtorJDBCDao();
-//            Field field = clazz.getDeclaredField(nameField);
-//            ComtorOneToMany annotation = field.getAnnotation(ComtorOneToMany.class);
-//            if (annotation != null) {
-//                Class fieldType = field.getType();
-//                if (fieldType.equals(LinkedList.class)) {
-//                    AnnotationsJDBCDaoDescriptor targetEntityDescriptor = new AnnotationsJDBCDaoDescriptor(annotation.targetEntity());
-//                    targetEntityDescriptor.setDriver(descriptor.getDriver());
-//                    Object values[] = GenericsUtil.getKeyValues(entity).values().toArray();
-//                    if (values.length == annotation.joinColumn().length) {
-//                        String wherePart = " WHERE 1 = 1";
-//
-//                        for (int i = 0; i < annotation.joinColumn().length; i++) {
-//                            String joinColumn = annotation.joinColumn()[i];
-//                            ComtorJDBCField comtorJDBCField = targetEntityDescriptor.getField(joinColumn);
-//                            wherePart += " AND  " + targetEntityDescriptor.getTableName() + "." + comtorJDBCField.getColumnName() + " = " + getValue(values[i]);
-//                        }
-//
-//                        LinkedList vector = (LinkedList) fieldType.newInstance();
-//                        LinkedList<Object> childs = dao.findAllRange(ComtorJDBCDao.getFindQuery(targetEntityDescriptor) + wherePart, targetEntityDescriptor);
-//                        vector.addAll(childs);
-//
-//                        Class[] arrSet = new Class[1];
-//                        arrSet[0] = field.getType();
-//                        String capName = Character.toUpperCase(field.getName().charAt(0)) + field.getName().substring(1);
-//                        Method setMethod = entity.getClass().getMethod("set" + capName, arrSet);
-//                        setMethod.invoke(entity, vector);
-//                    }
-//                }
-//            }
-//        } catch (Exception ex) {
-//            ex.printStackTrace();
-//        } finally {
-//            if (dao != null) {
-//                dao.close();
-//            }
-//        }
-//    }
-    /**
-     *
      * @param value
      * @return
      */
@@ -523,31 +393,22 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
 
         if ((type.equals(long.class)) || (type.equals(Long.class)) || (type.equals(int.class)) || (type.equals(Integer.class))) {
             return String.valueOf(value);
-        } else {
-            return "'" + String.valueOf(value) + "'";
         }
+
+        return "'" + String.valueOf(value) + "'";
     }
 
     /**
-     * Ejecuta un query arbitrario, este puede ser usado por los hijos de esta
-     * clase
+     * Ejecuta un query arbitrario, este puede ser usado por los hijos de esta clase
      *
      * @param sql
      * @param params
      */
     protected void execute(String sql, Object... params) {
-        ComtorJDBCDao dao = null;
-
-        try {
-            dao = getComtorJDBCDao();
+        try (ComtorJDBCDao dao = getComtorJDBCDao()) {
             execute(dao, sql, params);
-
         } catch (Exception ex) {
             ex.printStackTrace();
-        } finally {
-            if (dao != null) {
-                dao.close();
-            }
         }
     }
 
@@ -556,14 +417,7 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
     }
 
     public int getCount(PK key, Class<? extends Serializable> foreignClass, String fieldName) throws ComtorDaoException {
-        ComtorJDBCDao dao = null;
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        try {
-            dao = getComtorJDBCDao();
-            conn = dao.getJdbcConnection();
+        try (ComtorJDBCDao dao = getComtorJDBCDao()) {
             String tableName = getTable(foreignClass);
             String column = getColumn(foreignClass, fieldName);
             String query = "\n"
@@ -572,27 +426,19 @@ public class ComtorDaoElementLogicFacade<E, PK extends Serializable> implements 
                     + " FROM \n"
                     + "     " + tableName + " \n"
                     + " WHERE \n"
-                    + "     " + tableName + "." + column + " = ? \n"
-                    + "";
+                    + "     " + tableName + "." + column + " = ? \n";
 
-            ps = conn.prepareStatement(query);
+            try (Connection conn = dao.getJdbcConnection()) {
+                try (PreparedStatement ps = conn.prepareStatement(query)) {
+                    ps.setObject(1, key);
 
-            int pos = 1;
-            ps.setObject(pos++, key);
-
-            rs = ps.executeQuery();
-
-            while (rs.next()) {
-                return rs.getInt(1);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        return rs.next() ? rs.getInt(1) : 0;
+                    }
+                }
             }
-
-            return 0;
-        } catch (SQLException ex) {
+        } catch (SQLException | NoSuchFieldException ex) {
             throw new ComtorDaoException(ex);
-        } catch (NoSuchFieldException ex) {
-            throw new ComtorDaoException(ex);
-        } finally {
-            ComtorJDBCDao.safeClose(dao, conn, ps, rs);
         }
     }
 

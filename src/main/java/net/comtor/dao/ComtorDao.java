@@ -98,11 +98,4 @@ public interface ComtorDao extends Closeable {
      */
     LinkedList<Object> findAllRange(String query, ComtorDaoDescriptor desc, long firstElement, long maxElements, Object... params)
             throws ComtorDaoException;
-    /**
-     *
-     * @param desc
-     * @return
-     * @throws net.comtor.dao.ComtorDaoException
-     */
-    //String getFindQuery(ComtorDaoDescriptor desc) throws ComtorDaoException;
 }

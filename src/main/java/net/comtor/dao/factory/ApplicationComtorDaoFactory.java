@@ -23,6 +23,7 @@ public class ApplicationComtorDaoFactory {
         if (factory == null) {
             factory = new ApplicationComtorDaoFactory();
         }
+        
         return factory;
     }
 
@@ -33,7 +34,8 @@ public class ApplicationComtorDaoFactory {
             ex.printStackTrace();
         } catch (IllegalAccessException ex) {            
             ex.printStackTrace();
-        }        
+        }
+        
         return null;
     }
 }

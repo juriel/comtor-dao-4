@@ -13,6 +13,11 @@ public class DataSourceConnectionMap {
 
     public static int MAX_NUM_OF_POOL_CONNECTIONS = 8;
     public static int MIN_EVICTABLE_IDLE_TIMEOUT_MILLIS = 60000;
+    public static int VALIDATION_QUERY_TIMEOUT = 5;  //seconds
+    public static int MAX_ACTIVE = -1;
+    public static int MIN_IDLE = 0;    
+    
+    
     private HashMap<String, javax.sql.DataSource> dataSourceMap;
     static DataSourceConnectionMap instance;
 
@@ -29,15 +34,33 @@ public class DataSourceConnectionMap {
         DataSource dataSource = dataSourceMap.get(key);
 
         if (dataSource == null) {
+            
+            
+            
+            
             BasicDataSource basicDataSource = new BasicDataSource();
+            
+            
+            
+            basicDataSource.setMaxIdle(MAX_NUM_OF_POOL_CONNECTIONS);
+            
+            basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
+            
+            
+            
+            
             basicDataSource.setDriverClassName(driver);
             basicDataSource.setUsername(user);
             basicDataSource.setPassword(password);
             basicDataSource.setUrl(url);
             basicDataSource.setMaxIdle(MAX_NUM_OF_POOL_CONNECTIONS);
+            basicDataSource.setMaxActive(MAX_ACTIVE);
+            basicDataSource.setMinIdle(MIN_IDLE);
             basicDataSource.setMinIdle(0);
             basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
-            basicDataSource.setValidationQueryTimeout(30);
+            
+            basicDataSource.setValidationQueryTimeout(VALIDATION_QUERY_TIMEOUT);
+            basicDataSource.setTestOnBorrow(true);
             //basicDataSource.setMaxWait(20000);
             basicDataSource.setMinEvictableIdleTimeMillis(MIN_EVICTABLE_IDLE_TIMEOUT_MILLIS);
             basicDataSource.setValidationQuery(getValidationQuery(driver));
@@ -64,6 +87,7 @@ public class DataSourceConnectionMap {
             case ComtorJDBCDao.DRIVER_POSTGRES:
                 return "SELECT 1+1";
             case ComtorJDBCDao.DRIVER_MYSQL:
+            case ComtorJDBCDao.DRIVER_MARIADB:    
                 return "SELECT 1+1";
             case ComtorJDBCDao.DRIVER_ORACLE:
             case ComtorJDBCDao.DRIVER_ORACLE_2:

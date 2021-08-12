@@ -37,6 +37,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     public static final String DRIVER_SQL_SERVER = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
     public static final String DRIVER_POSTGRES = "org.postgresql.Driver";
     public static final String DRIVER_MYSQL = "com.mysql.jdbc.Driver";
+    public static final String DRIVER_MARIADB    = "org.mariadb.jdbc.Driver";
     public static final String DRIVER_ORACLE = "oracle.jdbc.OracleDriver";
     public static final String DRIVER_ORACLE_2 = "oracle.jdbc.driver.OracleDriver";
     public static final String DRIVER_SYBASE = "com.sybase.jdbc2.jdbc.SybDriver";

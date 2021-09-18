@@ -54,7 +54,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     private String password;
 
     public ComtorJDBCDao(Connection conn) throws ComtorDaoException {
-        jdbcConnection = conn;
+        setJdbcConnection(conn);
     }
 
     /**
@@ -107,7 +107,15 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      *
      * @param jdbc
      */
-    protected void setJdbcConnection(Connection jdbc) {
+    final protected void setJdbcConnection(Connection jdbc) {
+        if (jdbcConnection != null) {
+            try {
+                System.err.println("JDBC Connection Already exists");
+                jdbcConnection.close();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        }
         jdbcConnection = jdbc;
     }
 
@@ -122,8 +130,9 @@ public class ComtorJDBCDao extends AbstractComtorDao {
      */
     protected void initConnection(String driver, String url, String user, String password) throws ClassNotFoundException, SQLException {
         Class.forName(driver);
+        Connection conn = (user == null) ? DriverManager.getConnection(url) : DriverManager.getConnection(url, user, password);
+        setJdbcConnection(conn);
 
-        jdbcConnection = (user == null) ? DriverManager.getConnection(url) : DriverManager.getConnection(url, user, password);
     }
 
     /**
@@ -138,6 +147,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
 
             jdbcConnection = null;
         } catch (SQLException ex) {
+            ex.printStackTrace();
         }
     }
 

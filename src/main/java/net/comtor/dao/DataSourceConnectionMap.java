@@ -1,5 +1,6 @@
 package net.comtor.dao;
 
+import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.HashMap;
@@ -7,7 +8,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
-import org.apache.commons.dbcp.BasicDataSource;
+import org.apache.commons.dbcp2.BasicDataSource;
 
 /**
  * singleton of All DataSources
@@ -20,7 +21,7 @@ public class DataSourceConnectionMap {
     public static int MAX_IDLE = 20;
     public static int MIN_EVICTABLE_IDLE_TIMEOUT_MILLIS = 60000;
     public static int VALIDATION_QUERY_TIMEOUT = 1;  //seconds
-    public static int MAX_ACTIVE = -1;
+    public static int MAX_TOTAL = -1;
     public static int MIN_IDLE = 0;
 
     private HashMap<String, javax.sql.DataSource> dataSourceMap;
@@ -48,7 +49,7 @@ public class DataSourceConnectionMap {
             basicDataSource.setPassword(password);
             basicDataSource.setUrl(url);
             basicDataSource.setMaxIdle(MAX_IDLE);
-            basicDataSource.setMaxActive(MAX_ACTIVE);
+            basicDataSource.setMaxTotal(MAX_TOTAL);
             basicDataSource.setMinIdle(MIN_IDLE);
 
             // basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
@@ -58,15 +59,14 @@ public class DataSourceConnectionMap {
             basicDataSource.setMinEvictableIdleTimeMillis(MIN_EVICTABLE_IDLE_TIMEOUT_MILLIS);
             basicDataSource.setValidationQuery(getValidationQuery(driver));
             basicDataSource.setTestWhileIdle(true);
+//            System.err.println("============================Setting logging================================");
+//            System.out.println("============================Setting logging out================================");
+            basicDataSource.setLogAbandoned(true);
             try {
-                System.err.println("============================Setting logging================================");
-                System.out.println("============================Setting logging out================================");
-                Logger.getLogger("         LOGGER                 ");
-
-                basicDataSource.setLogWriter(new PrintWriter(System.err));
-
+                basicDataSource.setLogWriter(new PrintWriter("/tmp/pool.txt"));
+            } catch (FileNotFoundException ex) {
+                Logger.getLogger(DataSourceConnectionMap.class.getName()).log(Level.SEVERE, null, ex);
             } catch (SQLException ex) {
-                System.err.print(ex);
                 Logger.getLogger(DataSourceConnectionMap.class.getName()).log(Level.SEVERE, null, ex);
             }
 
@@ -74,6 +74,20 @@ public class DataSourceConnectionMap {
 
             return basicDataSource;
         }
+//        BasicDataSource ds = (BasicDataSource) dataSource;
+//        System.out.println("==========> active:" + ds.getNumActive() + "  idle:" + ds.getNumIdle() + " <==================");
+////        ds.setLogExpiredConnections(true);
+////        ds.setLogAbandoned(true);
+////        
+////        Thread th = Thread.currentThread();
+////        StackTraceElement[] st = th.getStackTrace();
+////        for (StackTraceElement s : st) {
+////            if (s.getClassName().startsWith("org.apache.jsp")){
+////                break;
+////            }
+////            System.out.println("     " + s.getClassName() + ":" + s.getMethodName() + " " + s.getLineNumber());
+////        }
+////        System.out.println("-------------------------------------------------------------------------------------");
 
         return dataSource;
     }
@@ -120,4 +134,5 @@ public class DataSourceConnectionMap {
                 return "";
         }
     }
+
 }

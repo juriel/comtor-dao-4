@@ -1,5 +1,6 @@
 package net.comtor.dao;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import javax.sql.DataSource;
 
@@ -58,7 +59,8 @@ public class ComtorJDBCDataSourceDao extends ComtorJDBCDao {
     @Override
     protected void initConnection(String driver, String url, String user, String password) throws ClassNotFoundException, SQLException {
         dataSource = DataSourceConnectionMap.getInstance().getDataSource(driver, url, user, password);
-        setJdbcConnection(getDataSource().getConnection());
+        Connection conn = getDataSource().getConnection();
+        setJdbcConnection(conn);
     }
 
     /**

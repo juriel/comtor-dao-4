@@ -1,8 +1,11 @@
 package net.comtor.dao;
 
+import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.apache.commons.dbcp.BasicDataSource;
 
@@ -14,7 +17,7 @@ import org.apache.commons.dbcp.BasicDataSource;
 public class DataSourceConnectionMap {
 
     //public static int MAX_NUM_OF_POOL_CONNECTIONS = 20;
-    public static int  MAX_IDLE =20;
+    public static int MAX_IDLE = 20;
     public static int MIN_EVICTABLE_IDLE_TIMEOUT_MILLIS = 60000;
     public static int VALIDATION_QUERY_TIMEOUT = 1;  //seconds
     public static int MAX_ACTIVE = -1;
@@ -39,9 +42,7 @@ public class DataSourceConnectionMap {
 
             BasicDataSource basicDataSource = new BasicDataSource();
 
-
             //basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
-
             basicDataSource.setDriverClassName(driver);
             basicDataSource.setUsername(user);
             basicDataSource.setPassword(password);
@@ -49,15 +50,25 @@ public class DataSourceConnectionMap {
             basicDataSource.setMaxIdle(MAX_IDLE);
             basicDataSource.setMaxActive(MAX_ACTIVE);
             basicDataSource.setMinIdle(MIN_IDLE);
-            
-           // basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
 
+            // basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
             basicDataSource.setValidationQueryTimeout(VALIDATION_QUERY_TIMEOUT);
             basicDataSource.setTestOnBorrow(true);
             //basicDataSource.setMaxWait(20000);
             basicDataSource.setMinEvictableIdleTimeMillis(MIN_EVICTABLE_IDLE_TIMEOUT_MILLIS);
             basicDataSource.setValidationQuery(getValidationQuery(driver));
             basicDataSource.setTestWhileIdle(true);
+            try {
+                System.err.println("============================Setting logging================================");
+                System.out.println("============================Setting logging out================================");
+                Logger.getLogger("         LOGGER                 ");
+
+                basicDataSource.setLogWriter(new PrintWriter(System.err));
+
+            } catch (SQLException ex) {
+                System.err.print(ex);
+                Logger.getLogger(DataSourceConnectionMap.class.getName()).log(Level.SEVERE, null, ex);
+            }
 
             dataSourceMap.put(key, basicDataSource);
 

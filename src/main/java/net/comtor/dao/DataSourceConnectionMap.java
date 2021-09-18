@@ -24,7 +24,7 @@ public class DataSourceConnectionMap {
     public static int MAX_TOTAL = -1;
     public static int MIN_IDLE = 0;
 
-    private HashMap<String, javax.sql.DataSource> dataSourceMap;
+    private final HashMap<String, javax.sql.DataSource> dataSourceMap;
     static DataSourceConnectionMap instance;
 
     static {

@@ -13,9 +13,10 @@ import org.apache.commons.dbcp.BasicDataSource;
  */
 public class DataSourceConnectionMap {
 
-    public static int MAX_NUM_OF_POOL_CONNECTIONS = 8;
+    //public static int MAX_NUM_OF_POOL_CONNECTIONS = 20;
+    public static int  MAX_IDLE =20;
     public static int MIN_EVICTABLE_IDLE_TIMEOUT_MILLIS = 60000;
-    public static int VALIDATION_QUERY_TIMEOUT = 5;  //seconds
+    public static int VALIDATION_QUERY_TIMEOUT = 1;  //seconds
     public static int MAX_ACTIVE = -1;
     public static int MIN_IDLE = 0;
 
@@ -27,7 +28,7 @@ public class DataSourceConnectionMap {
     }
 
     private DataSourceConnectionMap() {
-        dataSourceMap = new HashMap<String, DataSource>();
+        dataSourceMap = new HashMap<>();
     }
 
     public synchronized DataSource getDataSource(String driver, String url, String user, String password) {
@@ -38,19 +39,18 @@ public class DataSourceConnectionMap {
 
             BasicDataSource basicDataSource = new BasicDataSource();
 
-            basicDataSource.setMaxIdle(MAX_NUM_OF_POOL_CONNECTIONS);
 
-            basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
+            //basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
 
             basicDataSource.setDriverClassName(driver);
             basicDataSource.setUsername(user);
             basicDataSource.setPassword(password);
             basicDataSource.setUrl(url);
-            basicDataSource.setMaxIdle(MAX_NUM_OF_POOL_CONNECTIONS);
+            basicDataSource.setMaxIdle(MAX_IDLE);
             basicDataSource.setMaxActive(MAX_ACTIVE);
             basicDataSource.setMinIdle(MIN_IDLE);
-            basicDataSource.setMinIdle(0);
-            basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
+            
+           // basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
 
             basicDataSource.setValidationQueryTimeout(VALIDATION_QUERY_TIMEOUT);
             basicDataSource.setTestOnBorrow(true);

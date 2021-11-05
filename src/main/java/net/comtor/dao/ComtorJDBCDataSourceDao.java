@@ -59,8 +59,19 @@ public class ComtorJDBCDataSourceDao extends ComtorJDBCDao {
     @Override
     protected void initConnection(String driver, String url, String user, String password) throws ClassNotFoundException, SQLException {
         dataSource = DataSourceConnectionMap.getInstance().getDataSource(driver, url, user, password);
-        Connection conn = getDataSource().getConnection();
-        setJdbcConnection(conn);
+        DataSource ds = null;
+        Connection conn = null;
+        try {
+             ds = getDataSource();
+            conn = ds.getConnection();
+            setJdbcConnection(conn);
+        } catch (Exception e) {
+            System.out.println("ERROR DRIVER " +driver);
+            System.out.println("ERROR Datasource " +ds+" "+(ds != null?ds.getClass(): "NONE"));
+            System.out.println("ERROR connection " +conn+" "+(conn != null?conn.getClass(): "NONE"));
+            throw e;
+        }
+
     }
 
     /**

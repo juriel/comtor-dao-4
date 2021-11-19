@@ -23,6 +23,11 @@ public class DataSourceConnectionMap {
     public static int VALIDATION_QUERY_TIMEOUT = 1;  //seconds
     public static int MAX_TOTAL = -1;
     public static int MIN_IDLE = 0;
+    public static int MAX_WAIT_MILLIS = -1;
+    public static int TIME_BETWEEN_EVICTION_RUNS_MILLIS = -1;
+    public static boolean TEST_ON_BORROW = true;
+    public static boolean TEST_WHILE_IDLE = true;
+    public static boolean LOG_ABANDONED = true;
 
     private final HashMap<String, javax.sql.DataSource> dataSourceMap;
     static DataSourceConnectionMap instance;
@@ -54,14 +59,18 @@ public class DataSourceConnectionMap {
 
             // basicDataSource.setMaxActive(MAX_NUM_OF_POOL_CONNECTIONS);
             basicDataSource.setValidationQueryTimeout(VALIDATION_QUERY_TIMEOUT);
-            basicDataSource.setTestOnBorrow(true);
+            basicDataSource.setTestOnBorrow(TEST_ON_BORROW);
             //basicDataSource.setMaxWait(20000);
             basicDataSource.setMinEvictableIdleTimeMillis(MIN_EVICTABLE_IDLE_TIMEOUT_MILLIS);
             basicDataSource.setValidationQuery(getValidationQuery(driver));
-            basicDataSource.setTestWhileIdle(true);
+            basicDataSource.setTestWhileIdle(TEST_WHILE_IDLE);
 //            System.err.println("============================Setting logging================================");
 //            System.out.println("============================Setting logging out================================");
-            basicDataSource.setLogAbandoned(true);
+            basicDataSource.setLogAbandoned(LOG_ABANDONED);
+            basicDataSource.setMaxWaitMillis(MAX_WAIT_MILLIS);
+            if (TIME_BETWEEN_EVICTION_RUNS_MILLIS > -1) {
+                basicDataSource.setTimeBetweenEvictionRunsMillis(TIME_BETWEEN_EVICTION_RUNS_MILLIS);
+            }
             try {
                 basicDataSource.setLogWriter(new PrintWriter("/tmp/pool.txt"));
             } catch (FileNotFoundException ex) {

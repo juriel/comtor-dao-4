@@ -71,13 +71,13 @@ public class DataSourceConnectionMap {
             if (TIME_BETWEEN_EVICTION_RUNS_MILLIS > -1) {
                 basicDataSource.setTimeBetweenEvictionRunsMillis(TIME_BETWEEN_EVICTION_RUNS_MILLIS);
             }
-            try {
-                basicDataSource.setLogWriter(new PrintWriter("/tmp/pool.txt"));
-            } catch (FileNotFoundException ex) {
-                Logger.getLogger(DataSourceConnectionMap.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (SQLException ex) {
-                Logger.getLogger(DataSourceConnectionMap.class.getName()).log(Level.SEVERE, null, ex);
-            }
+//            try {
+//                basicDataSource.setLogWriter(new PrintWriter("/tmp/pool.txt"));
+//            } catch (FileNotFoundException ex) {
+//                Logger.getLogger(DataSourceConnectionMap.class.getName()).log(Level.SEVERE, null, ex);
+//            } catch (SQLException ex) {
+//                Logger.getLogger(DataSourceConnectionMap.class.getName()).log(Level.SEVERE, null, ex);
+//            }
 
             dataSourceMap.put(key, basicDataSource);
 

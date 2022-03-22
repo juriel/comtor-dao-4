@@ -229,7 +229,11 @@ public class ComtorJDBCDao extends AbstractComtorDao {
             Object[] obj = new Object[1];  // parameter for invoke
 
             try {
-                Object dataFromResultSet = rs.getObject(columnNameFromField);
+                Object dataFromResultSet = null;
+                try{
+                    dataFromResultSet = rs.getObject(columnNameFromField);
+                } catch(SQLException ex){
+                }
 
                 if (dataFromResultSet != null) {
                     obj[0] = dataFromResultSet;
@@ -306,9 +310,6 @@ public class ComtorJDBCDao extends AbstractComtorDao {
                         LOG.log(Level.SEVERE, ex.getMessage(), ex);
                     }
                 }
-            } catch (SQLException ex) {
-                
-                LOG.log(Level.SEVERE,"  columnNameFromField:"+ columnNameFromField+" " +ex.getMessage(), ex);
             } catch (IllegalArgumentException ex) {
                 LOG.log(Level.SEVERE, ex.getMessage(), ex);
             } catch (Exception ex) {

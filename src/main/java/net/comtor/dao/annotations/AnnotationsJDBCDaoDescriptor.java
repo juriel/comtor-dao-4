@@ -175,13 +175,14 @@ public class AnnotationsJDBCDaoDescriptor extends ComtorJDBCDaoDescriptor {
             } else if (annotation.annotationType().equals(ComtorId.class)) {
                 comtorField.setFindable(true);
             } // ComtorSpecialField 2014-02-10
+            /*
             else if (annotation.annotationType().equals(ComtorSpecialField.class)) {
                 comtorField.setFindable(false);
                 comtorField.setInsertable(false);
                 comtorField.setUpdatable(false);
                 comtorField.setSelectable(false);
                 comtorField.setSpecial(true);
-            }
+            }*/
         }
     }
 

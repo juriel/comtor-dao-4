@@ -307,7 +307,8 @@ public class ComtorJDBCDao extends AbstractComtorDao {
                     }
                 }
             } catch (SQLException ex) {
-                LOG.log(Level.SEVERE, ex.getMessage(), ex);
+                
+                LOG.log(Level.SEVERE,"  columnNameFromField:"+ columnNameFromField+" " +ex.getMessage(), ex);
             } catch (IllegalArgumentException ex) {
                 LOG.log(Level.SEVERE, ex.getMessage(), ex);
             } catch (Exception ex) {

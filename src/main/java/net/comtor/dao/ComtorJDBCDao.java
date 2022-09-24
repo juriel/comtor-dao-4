@@ -241,7 +241,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
                     try {
                         Class dataType = dataFromResultSet.getClass();
 
-                        if ((fieldType.equals(long.class) || fieldType.equals(double.class)) && dataFromResultSet == null) {
+                        if ((fieldType.equals(long.class) || fieldType.equals(double.class)) ) {
                             selectableField.getSetMethod().invoke(result, 0);
                         } else if (fieldType.equals(long.class) && dataType.equals(BigDecimal.class)) {
                             obj[0] = ((BigDecimal) dataFromResultSet).longValue();

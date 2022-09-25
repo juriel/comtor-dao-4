@@ -292,6 +292,8 @@ public class ComtorJDBCDao extends AbstractComtorDao {
                         } else if (fieldType.equals(Boolean.class) || fieldType.equals(boolean.class)) {
                             obj[0] = rs.getBoolean(columnNameFromField);
                             selectableField.getSetMethod().invoke(result, obj);
+                        } else if (fieldType.equals(Long.class) && dataType.equals(Integer.class)){
+                            obj[0] = new Long(rs.getLong(columnNameFromField));
                         } else {
                             selectableField.getSetMethod().invoke(result, obj);
                         }

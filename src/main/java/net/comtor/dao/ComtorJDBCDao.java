@@ -35,13 +35,13 @@ public class ComtorJDBCDao extends AbstractComtorDao {
     public static boolean LOG_EXECUTE_QUERY = false;
 
     public static final String DRIVER_SQL_SERVER = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
-    public static final String DRIVER_POSTGRES  = "org.postgresql.Driver";
-    public static final String DRIVER_MYSQL     = "com.mysql.jdbc.Driver";
-    public static final String DRIVER_MARIADB   = "org.mariadb.jdbc.Driver";
-    public static final String DRIVER_ORACLE    = "oracle.jdbc.OracleDriver";
-    public static final String DRIVER_ORACLE_2  = "oracle.jdbc.driver.OracleDriver";
-    public static final String DRIVER_SYBASE    = "com.sybase.jdbc2.jdbc.SybDriver";
-    public static final String DRIVER_SQLITE    = "org.sqlite.JDBC";
+    public static final String DRIVER_POSTGRES = "org.postgresql.Driver";
+    public static final String DRIVER_MYSQL = "com.mysql.jdbc.Driver";
+    public static final String DRIVER_MARIADB = "org.mariadb.jdbc.Driver";
+    public static final String DRIVER_ORACLE = "oracle.jdbc.OracleDriver";
+    public static final String DRIVER_ORACLE_2 = "oracle.jdbc.driver.OracleDriver";
+    public static final String DRIVER_SYBASE = "com.sybase.jdbc2.jdbc.SybDriver";
+    public static final String DRIVER_SQLITE = "org.sqlite.JDBC";
 
     public static final String MYSQL_SEQUENCE = "SELECT LAST_INSERT_ID()";
     public static final String SQL_SERVER_SEQUENCE = "SELECT @@IDENTITY";
@@ -132,7 +132,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
         Class.forName(driver);
         Connection conn = (user == null) ? DriverManager.getConnection(url) : DriverManager.getConnection(url, user, password);
         setJdbcConnection(conn);
-        
+
     }
 
     /**
@@ -241,7 +241,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
                     try {
                         Class dataType = dataFromResultSet.getClass();
 
-                        if ((fieldType.equals(long.class) || fieldType.equals(double.class)) ) {
+                        if ((fieldType.equals(long.class) || fieldType.equals(double.class))  && dataFromResultSet == null) {                            
                             selectableField.getSetMethod().invoke(result, 0);
                         } else if (fieldType.equals(long.class) && dataType.equals(BigDecimal.class)) {
                             obj[0] = ((BigDecimal) dataFromResultSet).longValue();
@@ -292,7 +292,7 @@ public class ComtorJDBCDao extends AbstractComtorDao {
                         } else if (fieldType.equals(Boolean.class) || fieldType.equals(boolean.class)) {
                             obj[0] = rs.getBoolean(columnNameFromField);
                             selectableField.getSetMethod().invoke(result, obj);
-                        } else if (fieldType.equals(Long.class) && dataType.equals(Integer.class)){
+                        } else if (fieldType.equals(Long.class) && dataType.equals(Integer.class)) {
                             obj[0] = new Long(rs.getLong(columnNameFromField));
                         } else {
                             selectableField.getSetMethod().invoke(result, obj);
